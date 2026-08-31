@@ -1,0 +1,29 @@
+<Window x:Class="HololiveCursorApp.RenameDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="重新命名主題" Height="190" Width="380"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#181825"
+        Foreground="#CDD6F4"
+        FontFamily="Microsoft JhengHei UI, Segoe UI, sans-serif">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="請輸入新的主題名稱：" FontSize="13" Foreground="#CDD6F4" Margin="0,0,0,10"/>
+
+        <TextBox Grid.Row="1" Name="TxtName" Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#89B4FA" 
+                 BorderThickness="1.5" Padding="8,6" FontSize="13" CaretBrush="#89B4FA"/>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,15,0,0">
+            <Button Content="取消" Width="75" Height="30" Margin="0,0,10,0" Click="BtnCancel_Click"
+                    Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A"/>
+            <Button Content="確定" Width="75" Height="30" Click="BtnOk_Click" IsDefault="True"
+                    Background="#1E66F5" Foreground="#FFFFFF" BorderBrush="#7287FD" FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>
