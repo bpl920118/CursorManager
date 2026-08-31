@@ -1,6 +1,6 @@
 # 貢獻指南 (Contributing Guide)
 
-感謝您對 **CursorMaster (鼠標大師)** 的關注與支持！
+感謝您對 **CursorManager (鼠標游標管理器)** 的關注與支持！
 
 ---
 
