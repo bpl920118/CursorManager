@@ -36,13 +36,14 @@ echo ========================================================
 dotnet publish CursorApp.csproj -c Release -o "%~dp0PublishOut"
 
 if exist "%~dp0PublishOut\CursorTool.exe" (
-    move /y "%~dp0PublishOut\CursorTool.exe" "%~dp0鼠標工具.exe" >nul
+    copy /y "%~dp0PublishOut\CursorTool.exe" "%~dp0鼠標工具.exe" >nul
+    move /y "%~dp0PublishOut\CursorTool.exe" "%~dp0CursorManager_v2.5.0.exe" >nul
     rd /s /q "%~dp0PublishOut" >nul 2>&1
     del /f /q "%~dp0*.pdb" >nul 2>&1
     echo.
     echo ========================================================
-    echo  [發布成功] 已成功生成帶有圖示的「鼠標工具.exe」！
-    echo  現在您可以雙擊 CursorApp\鼠標工具.exe 開啟使用。
+    echo  [發布成功] 已生成「CursorManager_v2.5.0.exe」與「鼠標工具.exe」！
+    echo  現在您可以雙擊執行開啟使用。
     echo ========================================================
 ) else (
     echo.
