@@ -394,10 +394,26 @@
                     <TextBlock Name="TxtStatusMessage" Text="已就緒。可點選左側角色或拖曳資料夾，然後點擊「一鍵套用」。" FontSize="13" Foreground="#A6ADC8" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Version Tag in bottom center -->
-                <Border Grid.Column="1" Background="#181825" BorderBrush="#313244" BorderThickness="1" CornerRadius="10" Padding="8,3" Margin="15,0" VerticalAlignment="Center">
-                    <TextBlock Name="TxtVersion" Text="v2.5" FontSize="11" FontWeight="SemiBold" Foreground="#6C7086"/>
-                </Border>
+                <!-- Version Tag & Update Button in bottom center -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                    <Border Background="#181825" BorderBrush="#313244" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Name="TxtVersion" Text="v2.6" FontSize="11" FontWeight="SemiBold" Foreground="#6C7086"/>
+                    </Border>
+                    
+                    <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click" 
+                            FontSize="11" Padding="8,4" Margin="6,0,0,0" VerticalAlignment="Center"/>
+
+                    <!-- New Version Notification Badge Button (Visible only when update is detected) -->
+                    <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊下載" Click="BtnNewUpdateFound_Click" 
+                            Visibility="Collapsed" Margin="6,0,0,0" Padding="10,4" FontSize="11" FontWeight="Bold"
+                            Background="#F38BA8" Foreground="#11111B" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="10"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
 
                 <!-- Actions -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
