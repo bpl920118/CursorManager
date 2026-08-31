@@ -24,6 +24,8 @@ echo ========================================================
 echo  正在清理舊輸出目錄...
 echo ========================================================
 if exist "%~dp0鼠標工具.exe" del /f /q "%~dp0鼠標工具.exe"
+if exist "%~dp0CursorManager.exe" del /f /q "%~dp0CursorManager.exe"
+if exist "%~dp0CursorManager_*.exe" del /f /q "%~dp0CursorManager_*.exe"
 if exist "%~dp0CursorTool.exe" del /f /q "%~dp0CursorTool.exe"
 if exist "%~dp0*.pdb" del /f /q "%~dp0*.pdb"
 if exist "bin" rd /s /q "bin" >nul 2>&1
@@ -36,14 +38,13 @@ echo ========================================================
 dotnet publish CursorApp.csproj -c Release -o "%~dp0PublishOut"
 
 if exist "%~dp0PublishOut\CursorTool.exe" (
-    copy /y "%~dp0PublishOut\CursorTool.exe" "%~dp0鼠標工具.exe" >nul
-    move /y "%~dp0PublishOut\CursorTool.exe" "%~dp0CursorManager_v2.7.0.exe" >nul
+    move /y "%~dp0PublishOut\CursorTool.exe" "%~dp0CursorManager.exe" >nul
     rd /s /q "%~dp0PublishOut" >nul 2>&1
     del /f /q "%~dp0*.pdb" >nul 2>&1
     echo.
     echo ========================================================
-    echo  [發布成功] 已生成「CursorManager_v2.7.0.exe」與「鼠標工具.exe」！
-    echo  現在您可以雙擊執行開啟使用。
+    echo  [發布成功] 已生成純英文單一執行檔「CursorManager.exe」！
+    echo  現在您可以雙擊執行開啟使用或直接上傳至 GitHub Release。
     echo ========================================================
 ) else (
     echo.
