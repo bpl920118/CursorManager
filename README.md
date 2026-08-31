@@ -48,9 +48,9 @@
 
 ### 📥 下載獨立免安裝執行檔 (Recommended)
 您無需安裝任何開發環境或 .NET 運行庫，直接下載打包好的單一執行檔即可使用：
-👉 **[前往 GitHub Releases 下載最新版「鼠標工具.exe」](https://github.com/bpl920118/CursorManager/releases/latest)**
+👉 **[前往 GitHub Releases 下載最新版「CursorManager_v2.5.0.exe」](https://github.com/bpl920118/CursorManager/releases/latest)**
 
-1. 下載 `鼠標工具.exe`。
+1. 下載 `CursorManager_v2.5.0.exe`。
 2. 放置於任意資料夾（建議單獨建一個資料夾，以便自動收錄主題）。
 3. 雙擊直接開啟即可使用！
 
