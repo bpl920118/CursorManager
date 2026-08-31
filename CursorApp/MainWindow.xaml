@@ -17,6 +17,30 @@
         Drop="Window_Drop">
 
     <Window.Resources>
+        <!-- Checkerboard brush for transparent preview -->
+        <DrawingBrush x:Key="CheckerboardBrush" Viewport="0,0,16,16" ViewportUnits="Absolute" TileMode="Tile">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#CCCCCC">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,16,16" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#FFFFFF">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="0,0,8,8" />
+                                <RectangleGeometry Rect="8,8,8,8" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
+        <!-- Dynamic Preview Slot Background Brush -->
+        <SolidColorBrush x:Key="SlotPreviewBackgroundBrush" Color="#11111B"/>
+
         <!-- Modern Scrollbar & Style Resources -->
         <SolidColorBrush x:Key="CardBackground" Color="#1E1E2E"/>
         <SolidColorBrush x:Key="CardBorder" Color="#313244"/>
@@ -197,8 +221,8 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="📥 擷取游標" Click="BtnCaptureCurrentSystem_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
                             ToolTip="將目前 Windows 正在使用的滑鼠游標直接存為新主題"/>
-                    <Button Content="⚙️ 儲存庫位置" Click="OpenStorageSettings_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
-                            ToolTip="查看或變更目前游標庫資料夾位置"/>
+                    <Button Content="⚙️ 設定" Click="OpenSettings_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
+                            ToolTip="資料夾位置與預覽外觀設定"/>
                     <Button Content="🖱️ 系統設定" Click="OpenWindowsMouseSettings_Click" Padding="8,5" FontSize="11.5"/>
                 </StackPanel>
             </Grid>
@@ -355,7 +379,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <!-- Preview Box -->
-                                        <Border Grid.Column="0" Background="#11111B" BorderBrush="#313244" BorderThickness="1" CornerRadius="6" Width="40" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="#313244" BorderThickness="1" CornerRadius="6" Width="40" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">
                                             <Grid>
                                                 <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                                                 <!-- If no preview icon -->

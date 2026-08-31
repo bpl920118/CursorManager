@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/.NET-8.0-purple.svg" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
-  <img src="https://img.shields.io/badge/Version-v2.5.0-brightgreen.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v2.7.0-brightgreen.svg" alt="Version" />
 </p>
 
 ---
@@ -21,13 +21,14 @@
 
 - **⚡ 一鍵秒級套用**：底層即時切換系統游標，**免重開機、免進入 Windows 控制台**，點擊瞬間生效。
 - **🎬 動態游標即時預覽 (Live .ANI Preview)**：內建 60 FPS RIFF/ANI 解碼器，軟體介面內直接播放動態游標的真實影格動作。
+- **🎨 預覽底色自由切換**：支援深色、淺色、透明棋盤格 3 種預覽背景，黑色與透明游標也能看得一清二楚。
 - **🎯 完美支援 15 項標準游標**：深度相容 Windows 11 桌面視窗管理器 (DWM)。
 - **🛡️ 純淨安全無毒**：原生解析 `.ani`、`.cur`、`.png`、`.svg` 與 `install.inf`，**無需冒險執行任何來路不明的外部 `.exe` 安裝檔**。
 - **📂 集中式游標庫管理**：
   - 支援拖曳資料夾或檔案快速匯入。
   - 支援主題即時關鍵字搜尋。
   - 支援右鍵快速重新命名、開啟資料夾、刪除主題。
-  - 支援自訂游標庫集中存放路徑。
+  - 支援自訂資料夾存放路徑與一站式設定面板。
 - **📸 系統游標一鍵提取**：自動辨識並完整提取當前系統正在運行的 15 項游標，建立精確對映並永久保存入庫。
 - **🔄 一秒原廠還原**：隨時一鍵還原回 Windows 官方原生預設樣式。
 
@@ -40,7 +41,8 @@
 | **左側游標庫清單** | 瀏覽與搜尋所有已收錄的游標主題，右鍵支援重命名/刪除/開檔 |
 | **右側 15 格預覽** | 顯示 15 項標準游標（正常、文字、忙碌、縮放等），動態游標即時播放 |
 | **頂部快速拖曳區** | 支援拖曳任意游標資料夾自動配對或匯入 |
-| **底部狀態與操作列** | 即時提示套用狀態，提供一鍵套用與還原預設按鈕 |
+| **頂部設定面板** | 統一管理資料夾儲存位置與 15 格預覽背景切換 |
+| **底部狀態與操作列** | 即時提示套用狀態，提供一鍵套用、還原預設與線上版本檢查更新 |
 
 ---
 
@@ -48,9 +50,9 @@
 
 ### 📥 下載獨立免安裝執行檔 (Recommended)
 您無需安裝任何開發環境或 .NET 運行庫，直接下載打包好的單一執行檔即可使用：
-👉 **[前往 GitHub Releases 下載最新版「CursorManager_v2.6.0.exe」](https://github.com/bpl920118/CursorManager/releases/latest)**
+👉 **[前往 GitHub Releases 下載最新版「CursorManager_v2.7.0.exe」](https://github.com/bpl920118/CursorManager/releases/latest)**
 
-1. 下載 `CursorManager_v2.6.0.exe`。
+1. 下載 `CursorManager_v2.7.0.exe`。
 2. 放置於任意資料夾（建議單獨建一個資料夾，以便自動收錄主題）。
 3. 雙擊直接開啟即可使用！
 
