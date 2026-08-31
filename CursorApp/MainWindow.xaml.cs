@@ -84,6 +84,23 @@ namespace HololiveCursorApp
                 _currentSlots.Clear();
                 foreach (var s in slots) _currentSlots.Add(s);
             }
+
+            // Silent background update check on startup
+            _ = CheckUpdateSilentlyAsync();
+        }
+
+        private async Task CheckUpdateSilentlyAsync()
+        {
+            var update = await Task.Run(UpdateChecker.CheckForUpdatesAsync);
+            if (update.HasUpdate)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    BtnNewUpdateFound.Content = $"🚀 發現新版 {update.LatestVersion}！點擊下載";
+                    BtnNewUpdateFound.Visibility = Visibility.Visible;
+                    BtnNewUpdateFound.Tag = update.ReleaseUrl;
+                });
+            }
         }
 
         private const string ConfigFileName = "config.ini";
@@ -734,6 +751,49 @@ namespace HololiveCursorApp
                     }
                 }
             }
+        }
+
+        private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            BtnCheckUpdate.IsEnabled = false;
+            SetStatus("🔄", "正在檢查雲端最新版本...", Color.FromRgb(0x89, 0xB4, 0xFA));
+
+            var update = await Task.Run(UpdateChecker.CheckForUpdatesAsync);
+            BtnCheckUpdate.IsEnabled = true;
+
+            if (update.HasUpdate)
+            {
+                BtnNewUpdateFound.Content = $"🚀 發現新版 {update.LatestVersion}！點擊下載";
+                BtnNewUpdateFound.Visibility = Visibility.Visible;
+                BtnNewUpdateFound.Tag = update.ReleaseUrl;
+
+                SetStatus("🚀", $"發現新版本 {update.LatestVersion}！可點擊右側按鈕前往下載更新。", Color.FromRgb(0xF3, 0x8B, 0xA8));
+
+                var ask = MessageBox.Show(
+                    $"🎉 發現 CursorManager 最新版本：【{update.LatestVersion}】\n\n" +
+                    $"當前運行版本：{update.CurrentVersion}\n\n" +
+                    $"【更新重點摘要】：\n{update.ReleaseNotes}\n\n" +
+                    $"是否立即前往 GitHub Releases 頁面下載最新版？",
+                    "發現新版本",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (ask == MessageBoxResult.Yes)
+                {
+                    UpdateChecker.OpenReleasePage(update.ReleaseUrl);
+                }
+            }
+            else
+            {
+                SetStatus("✨", $"目前已是最新版本 ({update.CurrentVersion})！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                MessageBox.Show($"目前運行的已是最新版本 ({update.CurrentVersion})，無需更新！", "檢查更新", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnNewUpdateFound_Click(object sender, RoutedEventArgs e)
+        {
+            string url = BtnNewUpdateFound.Tag?.ToString() ?? UpdateChecker.ReleaseWebUrl;
+            UpdateChecker.OpenReleasePage(url);
         }
     }
 }
