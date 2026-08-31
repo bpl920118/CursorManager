@@ -1,0 +1,46 @@
+<Window x:Class="HololiveCursorApp.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="游標庫儲存設定" Height="260" Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#181825"
+        Foreground="#CDD6F4"
+        FontFamily="Microsoft JhengHei UI, Segoe UI, sans-serif">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="📁 游標庫儲存目錄設定" FontSize="15" FontWeight="Bold" Foreground="#89B4FA"/>
+            <TextBlock Text="所有匯入、下載與管理的鼠標資料夾都會存放於此處：" FontSize="12" Foreground="#A6ADC8" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Current Path Display & Browse -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Name="TxtStoragePath" Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#89B4FA" 
+                     BorderThickness="1.5" Padding="8,6" FontSize="12" CaretBrush="#89B4FA" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="瀏覽..." Width="70" Height="32" Margin="8,0,0,0" Click="BtnBrowse_Click"
+                    Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A" Cursor="Hand"/>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Text="💡 提示：您可以自由選擇任何資料夾或自訂資料夾名稱（不必一定要叫 CursorsData）。" FontSize="11" Foreground="#6C7086" TextWrapping="Wrap"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,15,0,0">
+            <Button Content="開啟此目錄" Width="90" Height="32" Margin="0,0,10,0" Click="BtnOpenCurrent_Click"
+                    Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A" Cursor="Hand"/>
+            <Button Content="取消" Width="75" Height="32" Margin="0,0,10,0" Click="BtnCancel_Click"
+                    Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A" Cursor="Hand"/>
+            <Button Content="儲存設定" Width="85" Height="32" Click="BtnSave_Click" IsDefault="True"
+                    Background="#1E66F5" Foreground="#FFFFFF" BorderBrush="#7287FD" FontWeight="Bold" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,45 @@
+## .NET / C# Visual Studio / VS Code
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.dbmdl
+*.jfm
+*.pidb
+*.pdb
+
+# Executables, zips & build artifacts
+*.exe
+*.dll
+*.zip
+*.7z
+*.rar
+PublishOut/
+publish/
+*.exe.WebView2/
+
+# User custom config & deployment batch scripts (Private / Local only)
+config.ini
+app_config.json
+上傳GitHub.bat
+發布Release.bat
+*.bat.user
+
+# Cursors large data storage folder (user's personal assets)
+CursorsData/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# IDE & Editor folders
+.vs/
+.vscode/
+.cursor/
+*.log
