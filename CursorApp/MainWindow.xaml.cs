@@ -63,6 +63,9 @@ namespace HololiveCursorApp
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            var (_, savedBg) = LoadAppSettings();
+            ApplyPreviewBackground(savedBg);
+
             await ReloadThemesAsync();
 
             // Check if launched with folder argument (e.g. dragged onto exe)
@@ -111,21 +114,97 @@ namespace HololiveCursorApp
             return Path.Combine(appDir, ConfigFileName);
         }
 
-        private static string GetCursorsDataFolder()
+        private static (string FolderPath, string BgMode) LoadAppSettings()
         {
             string configPath = GetConfigFilePath();
+            string path = string.Empty;
+            string bgMode = "Dark";
+
             if (File.Exists(configPath))
             {
                 try
                 {
-                    string savedPath = File.ReadAllText(configPath).Trim();
-                    if (!string.IsNullOrEmpty(savedPath))
+                    var lines = File.ReadAllLines(configPath);
+                    foreach (var line in lines)
                     {
-                        if (!Directory.Exists(savedPath)) Directory.CreateDirectory(savedPath);
-                        return savedPath;
+                        var trimmed = line.Trim();
+                        if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith(";")) continue;
+
+                        if (trimmed.Contains("="))
+                        {
+                            var parts = trimmed.Split(new[] { '=' }, 2);
+                            var key = parts[0].Trim();
+                            var val = parts[1].Trim();
+                            if (key.Equals("CursorsDataPath", StringComparison.OrdinalIgnoreCase) || key.Equals("FolderPath", StringComparison.OrdinalIgnoreCase) || key.Equals("StoragePath", StringComparison.OrdinalIgnoreCase))
+                            {
+                                path = val;
+                            }
+                            else if (key.Equals("PreviewBg", StringComparison.OrdinalIgnoreCase) || key.Equals("PreviewBackground", StringComparison.OrdinalIgnoreCase) || key.Equals("BgMode", StringComparison.OrdinalIgnoreCase))
+                            {
+                                bgMode = val;
+                            }
+                        }
+                        else if (string.IsNullOrEmpty(path))
+                        {
+                            // Backward compatibility: old format where whole file was just the path
+                            path = trimmed;
+                        }
                     }
                 }
                 catch { }
+            }
+
+            return (path, bgMode);
+        }
+
+        private static void SaveAppSettings(string folderPath, string bgMode)
+        {
+            try
+            {
+                string configPath = GetConfigFilePath();
+                var content = $"FolderPath={folderPath}\nPreviewBg={bgMode}\n";
+                File.WriteAllText(configPath, content);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("儲存設定檔失敗：" + ex.Message);
+            }
+        }
+
+        private void ApplyPreviewBackground(string bgMode)
+        {
+            try
+            {
+                if (bgMode.Equals("Light", StringComparison.OrdinalIgnoreCase))
+                {
+                    Resources["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
+                }
+                else if (bgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || bgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (Resources["CheckerboardBrush"] is Brush checkerBrush)
+                    {
+                        Resources["SlotPreviewBackgroundBrush"] = checkerBrush;
+                    }
+                }
+                else
+                {
+                    // Dark
+                    Resources["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
+                }
+            }
+            catch { }
+        }
+
+        private static string GetCursorsDataFolder()
+        {
+            var (savedPath, _) = LoadAppSettings();
+            if (!string.IsNullOrEmpty(savedPath))
+            {
+                if (!Directory.Exists(savedPath))
+                {
+                    try { Directory.CreateDirectory(savedPath); } catch { }
+                }
+                return savedPath;
             }
 
             string appDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -152,16 +231,8 @@ namespace HololiveCursorApp
 
         private static void SetCustomCursorsDataFolder(string newPath)
         {
-            try
-            {
-                if (!Directory.Exists(newPath)) Directory.CreateDirectory(newPath);
-                string configPath = GetConfigFilePath();
-                File.WriteAllText(configPath, newPath);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("儲存設定檔失敗：" + ex.Message);
-            }
+            var (_, currentBg) = LoadAppSettings();
+            SaveAppSettings(newPath, currentBg);
         }
 
         private static void CopyDirectory(string sourceDir, string destinationDir)
@@ -695,10 +766,12 @@ namespace HololiveCursorApp
             }
         }
 
-        private void OpenStorageSettings_Click(object sender, RoutedEventArgs e)
+        private void OpenSettings_Click(object sender, RoutedEventArgs e)
         {
             string currentPath = GetCursorsDataFolder();
-            var dialog = new SettingsDialog(currentPath)
+            var (_, currentBg) = LoadAppSettings();
+
+            var dialog = new SettingsDialog(currentPath, currentBg)
             {
                 Owner = this
             };
@@ -706,12 +779,21 @@ namespace HololiveCursorApp
             if (dialog.ShowDialog() == true)
             {
                 string newPath = dialog.SelectedPath;
-                if (!string.Equals(currentPath, newPath, StringComparison.OrdinalIgnoreCase))
+                string newBg = dialog.SelectedBgMode;
+
+                SaveAppSettings(newPath, newBg);
+                ApplyPreviewBackground(newBg);
+
+                bool pathChanged = !string.Equals(currentPath, newPath, StringComparison.OrdinalIgnoreCase);
+                if (pathChanged)
                 {
-                    SetCustomCursorsDataFolder(newPath);
                     ReloadThemes();
-                    SetStatus("⚙️", $"已將游標庫儲存目錄更新為：{newPath}", Color.FromRgb(0xA6, 0xE3, 0xA1));
-                    MessageBox.Show($"已成功切換游標儲存庫目錄！\n\n新目錄：\n{newPath}", "設定已更新", MessageBoxButton.OK, MessageBoxImage.Information);
+                    SetStatus("⚙️", $"設定已儲存，資料夾位置更新為：{newPath}", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    MessageBox.Show($"設定已更新！\n\n資料夾位置：\n{newPath}\n預覽背景：{newBg}", "設定已儲存", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    SetStatus("⚙️", "設定已儲存！", Color.FromRgb(0xA6, 0xE3, 0xA1));
                 }
             }
         }

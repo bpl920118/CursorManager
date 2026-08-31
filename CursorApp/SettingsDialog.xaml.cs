@@ -9,19 +9,34 @@ namespace HololiveCursorApp
     public partial class SettingsDialog : Window
     {
         public string SelectedPath { get; private set; } = string.Empty;
+        public string SelectedBgMode { get; private set; } = "Dark";
 
-        public SettingsDialog(string currentPath)
+        public SettingsDialog(string currentPath, string currentBgMode = "Dark")
         {
             InitializeComponent();
             TxtStoragePath.Text = currentPath;
             SelectedPath = currentPath;
+
+            SelectedBgMode = string.IsNullOrEmpty(currentBgMode) ? "Dark" : currentBgMode;
+            if (SelectedBgMode.Equals("Light", StringComparison.OrdinalIgnoreCase))
+            {
+                RadioBgLight.IsChecked = true;
+            }
+            else if (SelectedBgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || SelectedBgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase))
+            {
+                RadioBgChecker.IsChecked = true;
+            }
+            else
+            {
+                RadioBgDark.IsChecked = true;
+            }
         }
 
         private void BtnBrowse_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new OpenFolderDialog
             {
-                Title = "選擇游標庫儲存目錄",
+                Title = "選擇資料夾位置",
                 InitialDirectory = Directory.Exists(TxtStoragePath.Text) ? TxtStoragePath.Text : AppDomain.CurrentDomain.BaseDirectory
             };
 
@@ -60,7 +75,7 @@ namespace HololiveCursorApp
             string path = TxtStoragePath.Text.Trim();
             if (string.IsNullOrWhiteSpace(path))
             {
-                MessageBox.Show("儲存目錄路徑不可為空！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("資料夾路徑不可為空！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -78,6 +93,20 @@ namespace HololiveCursorApp
             }
 
             SelectedPath = path;
+
+            if (RadioBgLight.IsChecked == true)
+            {
+                SelectedBgMode = "Light";
+            }
+            else if (RadioBgChecker.IsChecked == true)
+            {
+                SelectedBgMode = "Checkerboard";
+            }
+            else
+            {
+                SelectedBgMode = "Dark";
+            }
+
             DialogResult = true;
             Close();
         }
