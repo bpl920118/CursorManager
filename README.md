@@ -1,11 +1,11 @@
-# 🖱️ CursorMaster (鼠標大師 - Windows 游標一鍵即時套用工具)
+# 🖱️ CursorManager (鼠標游標管理器 - Windows 一鍵即時套用工具)
 
 <p align="center">
-  <img src="CursorApp/app.ico" alt="CursorMaster Logo" width="96" height="96" />
+  <img src="CursorApp/app.ico" alt="CursorManager Logo" width="96" height="96" />
 </p>
 
 <p align="center">
-  <b>CursorMaster 是一款專為 Windows 10 / 11 設計的現代化、安全且免安裝的滑鼠游標管理與一鍵即時切換工具。</b>
+  <b>CursorManager 是一款專為 Windows 10 / 11 設計的現代化、安全且免安裝的滑鼠游標管理與一鍵即時切換工具。</b>
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@
 
 ### 📥 下載獨立免安裝執行檔 (Recommended)
 您無需安裝任何開發環境或 .NET 運行庫，直接下載打包好的單一執行檔即可使用：
-👉 **[前往 GitHub Releases 下載最新版「鼠標工具.exe」](https://github.com/bpl920118/CursorMaster/releases/latest)**
+👉 **[前往 GitHub Releases 下載最新版「鼠標工具.exe」](https://github.com/bpl920118/CursorManager/releases/latest)**
 
 1. 下載 `鼠標工具.exe`。
 2. 放置於任意資料夾（建議單獨建一個資料夾，以便自動收錄主題）。
@@ -77,7 +77,7 @@
 ### 編譯發布指令
 ```bash
 # 複製專案
-git clone https://github.com/bpl920118/CursorMaster.git
+git clone https://github.com/bpl920118/CursorManager.git
 cd CursorApp/CursorApp
 
 # 發布單一執行檔
