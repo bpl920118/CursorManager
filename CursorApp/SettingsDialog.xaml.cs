@@ -9,20 +9,37 @@ namespace HololiveCursorApp
     public partial class SettingsDialog : Window
     {
         public string SelectedPath { get; private set; } = string.Empty;
+        public string SelectedAppTheme { get; private set; } = "Dark";
         public string SelectedBgMode { get; private set; } = "Dark";
 
-        public SettingsDialog(string currentPath, string currentBgMode = "Dark")
+        public SettingsDialog(string currentPath, string currentAppTheme = "System", string currentBgMode = "Dark")
         {
             InitializeComponent();
             TxtStoragePath.Text = currentPath;
             SelectedPath = currentPath;
+
+            SelectedAppTheme = string.IsNullOrEmpty(currentAppTheme) ? "System" : currentAppTheme;
+            if (SelectedAppTheme.Equals("Light", StringComparison.OrdinalIgnoreCase))
+            {
+                RadioAppThemeLight.IsChecked = true;
+            }
+            else if (SelectedAppTheme.Equals("Dark", StringComparison.OrdinalIgnoreCase))
+            {
+                RadioAppThemeDark.IsChecked = true;
+            }
+            else
+            {
+                RadioAppThemeSystem.IsChecked = true;
+            }
 
             SelectedBgMode = string.IsNullOrEmpty(currentBgMode) ? "Dark" : currentBgMode;
             if (SelectedBgMode.Equals("Light", StringComparison.OrdinalIgnoreCase))
             {
                 RadioBgLight.IsChecked = true;
             }
-            else if (SelectedBgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || SelectedBgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase))
+            else if (SelectedBgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || 
+                     SelectedBgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase) ||
+                     SelectedBgMode.Equals("Transparent", StringComparison.OrdinalIgnoreCase))
             {
                 RadioBgChecker.IsChecked = true;
             }
@@ -94,13 +111,26 @@ namespace HololiveCursorApp
 
             SelectedPath = path;
 
+            if (RadioAppThemeLight.IsChecked == true)
+            {
+                SelectedAppTheme = "Light";
+            }
+            else if (RadioAppThemeDark.IsChecked == true)
+            {
+                SelectedAppTheme = "Dark";
+            }
+            else
+            {
+                SelectedAppTheme = "System";
+            }
+
             if (RadioBgLight.IsChecked == true)
             {
                 SelectedBgMode = "Light";
             }
             else if (RadioBgChecker.IsChecked == true)
             {
-                SelectedBgMode = "Checkerboard";
+                SelectedBgMode = "Transparent";
             }
             else
             {

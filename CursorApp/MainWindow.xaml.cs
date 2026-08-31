@@ -63,7 +63,8 @@ namespace HololiveCursorApp
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var (_, savedBg) = LoadAppSettings();
+            var (_, savedTheme, savedBg) = LoadAppSettings();
+            ApplyAppTheme(savedTheme);
             ApplyPreviewBackground(savedBg);
 
             await ReloadThemesAsync();
@@ -114,10 +115,11 @@ namespace HololiveCursorApp
             return Path.Combine(appDir, ConfigFileName);
         }
 
-        private static (string FolderPath, string BgMode) LoadAppSettings()
+        private static (string FolderPath, string AppTheme, string BgMode) LoadAppSettings()
         {
             string configPath = GetConfigFilePath();
             string path = string.Empty;
+            string appTheme = "System";
             string bgMode = "Dark";
 
             if (File.Exists(configPath))
@@ -139,6 +141,10 @@ namespace HololiveCursorApp
                             {
                                 path = val;
                             }
+                            else if (key.Equals("AppTheme", StringComparison.OrdinalIgnoreCase) || key.Equals("Theme", StringComparison.OrdinalIgnoreCase) || key.Equals("UITheme", StringComparison.OrdinalIgnoreCase))
+                            {
+                                appTheme = val;
+                            }
                             else if (key.Equals("PreviewBg", StringComparison.OrdinalIgnoreCase) || key.Equals("PreviewBackground", StringComparison.OrdinalIgnoreCase) || key.Equals("BgMode", StringComparison.OrdinalIgnoreCase))
                             {
                                 bgMode = val;
@@ -154,21 +160,100 @@ namespace HololiveCursorApp
                 catch { }
             }
 
-            return (path, bgMode);
+            return (path, appTheme, bgMode);
         }
 
-        private static void SaveAppSettings(string folderPath, string bgMode)
+        private static void SaveAppSettings(string folderPath, string appTheme, string bgMode)
         {
             try
             {
                 string configPath = GetConfigFilePath();
-                var content = $"FolderPath={folderPath}\nPreviewBg={bgMode}\n";
+                var content = $"FolderPath={folderPath}\nAppTheme={appTheme}\nPreviewBg={bgMode}\n";
                 File.WriteAllText(configPath, content);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("儲存設定檔失敗：" + ex.Message);
             }
+        }
+
+        private static bool IsSystemInDarkMode()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    if (key != null)
+                    {
+                        var val = key.GetValue("AppsUseLightTheme");
+                        if (val is int lightMode)
+                        {
+                            return lightMode == 0;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return true; // Default to dark mode
+        }
+
+        private void ApplyAppTheme(string appTheme)
+        {
+            try
+            {
+                bool isLight = false;
+                if (appTheme.Equals("Light", StringComparison.OrdinalIgnoreCase))
+                {
+                    isLight = true;
+                }
+                else if (appTheme.Equals("Dark", StringComparison.OrdinalIgnoreCase))
+                {
+                    isLight = false;
+                }
+                else
+                {
+                    // "System" or default -> follow Windows theme
+                    isLight = !IsSystemInDarkMode();
+                }
+
+                if (isLight)
+                {
+                    // Light Theme Palette
+                    Resources["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF5));
+                    Resources["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
+                    Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE6, 0xE9, 0xEF));
+                    Resources["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF5));
+                    Resources["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDC, 0xE0, 0xE8));
+                    Resources["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0x4C, 0x4F, 0x69));
+                    Resources["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0x5C, 0x5F, 0x77));
+                    Resources["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x8C, 0x8F, 0xA1));
+                    Resources["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    Resources["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
+                    Resources["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0xCC, 0xD0, 0xDA));
+                    Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDF, 0xE3, 0xEB));
+                    Resources["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    Resources["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
+                }
+                else
+                {
+                    // Dark Theme Palette (Default)
+                    Resources["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    Resources["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    Resources["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    Resources["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
+                    Resources["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4));
+                    Resources["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xAD, 0xC8));
+                    Resources["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x6C, 0x70, 0x86));
+                    Resources["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    Resources["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    Resources["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    Resources["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    Resources["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                }
+            }
+            catch { }
         }
 
         private void ApplyPreviewBackground(string bgMode)
@@ -179,7 +264,9 @@ namespace HololiveCursorApp
                 {
                     Resources["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
                 }
-                else if (bgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || bgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase))
+                else if (bgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || 
+                         bgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase) ||
+                         bgMode.Equals("Transparent", StringComparison.OrdinalIgnoreCase))
                 {
                     if (Resources["CheckerboardBrush"] is Brush checkerBrush)
                     {
@@ -195,9 +282,62 @@ namespace HololiveCursorApp
             catch { }
         }
 
+        private static bool _hasPromptedStorageLocation = false;
+
+        private static string EnsureCursorsDataFolderInteractive(Window? owner)
+        {
+            var (savedPath, _, _) = LoadAppSettings();
+            if (!string.IsNullOrEmpty(savedPath))
+            {
+                if (!Directory.Exists(savedPath))
+                {
+                    try { Directory.CreateDirectory(savedPath); } catch { }
+                }
+                return savedPath;
+            }
+
+            string appDir = AppDomain.CurrentDomain.BaseDirectory;
+            string defaultFolder = Path.Combine(appDir, "CursorsData");
+
+            // If running for the first time without config and hasn't prompted yet in this session
+            if (!_hasPromptedStorageLocation)
+            {
+                _hasPromptedStorageLocation = true;
+                var res = MessageBox.Show(
+                    "【首次使用設定】\n\n" +
+                    "即將建立存放與管理滑鼠游標主題的資料夾。\n" +
+                    $"預設位置：\n{defaultFolder}\n\n" +
+                    "• 點選「是 (Yes)」：使用預設位置建立 CursorsData 資料夾\n" +
+                    "• 點選「否 (No)」：自訂選擇或連結現有的資料夾",
+                    "游標資料夾位置設定",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (res == MessageBoxResult.No)
+                {
+                    var dlg = new SettingsDialog(defaultFolder)
+                    {
+                        Owner = owner
+                    };
+                    if (dlg.ShowDialog() == true)
+                    {
+                        var (_, curTheme, curBg) = LoadAppSettings();
+                        SaveAppSettings(dlg.SelectedPath, curTheme, curBg);
+                        return dlg.SelectedPath;
+                    }
+                }
+            }
+
+            if (!Directory.Exists(defaultFolder))
+            {
+                try { Directory.CreateDirectory(defaultFolder); } catch { }
+            }
+            return defaultFolder;
+        }
+
         private static string GetCursorsDataFolder()
         {
-            var (savedPath, _) = LoadAppSettings();
+            var (savedPath, _, _) = LoadAppSettings();
             if (!string.IsNullOrEmpty(savedPath))
             {
                 if (!Directory.Exists(savedPath))
@@ -223,16 +363,13 @@ namespace HololiveCursorApp
                 if (Directory.Exists(c)) return c;
             }
 
-            // Default fallback to CursorsData in app directory
-            string def = Path.Combine(appDir, "CursorsData");
-            if (!Directory.Exists(def)) Directory.CreateDirectory(def);
-            return def;
+            return Path.Combine(appDir, "CursorsData");
         }
 
         private static void SetCustomCursorsDataFolder(string newPath)
         {
-            var (_, currentBg) = LoadAppSettings();
-            SaveAppSettings(newPath, currentBg);
+            var (_, currentTheme, currentBg) = LoadAppSettings();
+            SaveAppSettings(newPath, currentTheme, currentBg);
         }
 
         private static void CopyDirectory(string sourceDir, string destinationDir)
@@ -312,7 +449,7 @@ namespace HololiveCursorApp
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
                 return;
 
-            string cursorsData = GetCursorsDataFolder();
+            string cursorsData = EnsureCursorsDataFolderInteractive(this);
             string folderName = Path.GetFileName(folderPath.TrimEnd('\\', '/'));
             string targetDir = folderPath;
 
@@ -324,7 +461,7 @@ namespace HololiveCursorApp
                     $"【目前儲存庫目錄】：\n{cursorsData}\n\n" +
                     $"• 點選「是 (Yes)」：複製存入游標庫（推薦，方便統一管理）\n" +
                     $"• 點選「否 (No)」：僅本次直接讀取，不複製檔案\n" +
-                    $"（若想自訂儲存目錄名稱或路徑，可隨時點擊右上角「⚙️ 儲存庫位置」更改）",
+                    $"（若想自訂資料夾位置，可隨時點擊右上角「⚙️ 設定」更改）",
                     "匯入游標主題確認",
                     MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Question);
@@ -468,7 +605,7 @@ namespace HololiveCursorApp
         {
             try
             {
-                string cursorsData = GetCursorsDataFolder();
+                string cursorsData = EnsureCursorsDataFolderInteractive(this);
                 string themeName = defaultThemeName;
 
                 // Read current registry cursor paths
@@ -769,9 +906,9 @@ namespace HololiveCursorApp
         private void OpenSettings_Click(object sender, RoutedEventArgs e)
         {
             string currentPath = GetCursorsDataFolder();
-            var (_, currentBg) = LoadAppSettings();
+            var (_, currentTheme, currentBg) = LoadAppSettings();
 
-            var dialog = new SettingsDialog(currentPath, currentBg)
+            var dialog = new SettingsDialog(currentPath, currentTheme, currentBg)
             {
                 Owner = this
             };
@@ -779,9 +916,11 @@ namespace HololiveCursorApp
             if (dialog.ShowDialog() == true)
             {
                 string newPath = dialog.SelectedPath;
+                string newTheme = dialog.SelectedAppTheme;
                 string newBg = dialog.SelectedBgMode;
 
-                SaveAppSettings(newPath, newBg);
+                SaveAppSettings(newPath, newTheme, newBg);
+                ApplyAppTheme(newTheme);
                 ApplyPreviewBackground(newBg);
 
                 bool pathChanged = !string.Equals(currentPath, newPath, StringComparison.OrdinalIgnoreCase);
@@ -789,7 +928,7 @@ namespace HololiveCursorApp
                 {
                     ReloadThemes();
                     SetStatus("⚙️", $"設定已儲存，資料夾位置更新為：{newPath}", Color.FromRgb(0xA6, 0xE3, 0xA1));
-                    MessageBox.Show($"設定已更新！\n\n資料夾位置：\n{newPath}\n預覽背景：{newBg}", "設定已儲存", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"設定已更新！\n\n資料夾位置：\n{newPath}\n程式主題：{(newTheme == "Light" ? "淺色" : (newTheme == "Dark" ? "深色" : "跟隨系統"))}\n預覽背景：{(newBg == "Transparent" ? "透明" : (newBg == "Light" ? "淺色" : "深色"))}", "設定已儲存", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {

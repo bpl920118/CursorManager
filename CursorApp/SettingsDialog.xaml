@@ -1,11 +1,11 @@
 <Window x:Class="HololiveCursorApp.SettingsDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="設定" Height="410" Width="520"
+        Title="設定" Height="490" Width="520"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#181825"
-        Foreground="#CDD6F4"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="Microsoft JhengHei UI, Segoe UI, sans-serif">
 
     <Window.Resources>
@@ -39,10 +39,10 @@
         </Grid.RowDefinitions>
 
         <!-- Section 1: Folder Location -->
-        <Border Grid.Row="0" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,14">
+        <Border Grid.Row="0" Background="{DynamicResource DialogCardBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
             <StackPanel>
-                <TextBlock Text="📁 資料夾位置" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"/>
-                <TextBlock Text="所有匯入、下載與管理的游標資料夾存放目錄：" FontSize="11" Foreground="#A6ADC8" Margin="0,4,0,8"/>
+                <TextBlock Text="📁 資料夾位置" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccent}"/>
+                <TextBlock Text="所有匯入、下載與管理的游標資料夾存放目錄：" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,8"/>
                 
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
@@ -50,22 +50,62 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox Grid.Column="0" Name="TxtStoragePath" Background="#181825" Foreground="#CDD6F4" BorderBrush="#313244" 
-                             BorderThickness="1" Padding="8,6" FontSize="12" CaretBrush="#89B4FA" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="0" Name="TxtStoragePath" Background="{DynamicResource DialogInputBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderColorBrush}" 
+                             BorderThickness="1" Padding="8,6" FontSize="12" CaretBrush="{DynamicResource PrimaryAccent}" VerticalAlignment="Center"/>
                     <Button Grid.Column="1" Content="瀏覽..." Width="65" Height="30" Margin="6,0,0,0" Click="BtnBrowse_Click"
-                            Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A" Cursor="Hand" FontSize="11"/>
+                            Background="{DynamicResource ButtonBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderColorBrush}" Cursor="Hand" FontSize="11"/>
                     <Button Grid.Column="2" Content="開啟目錄" Width="75" Height="30" Margin="6,0,0,0" Click="BtnOpenCurrent_Click"
-                            Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A" Cursor="Hand" FontSize="11"/>
+                            Background="{DynamicResource ButtonBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderColorBrush}" Cursor="Hand" FontSize="11"/>
                 </Grid>
-                <TextBlock Text="💡 提示：您可以指定任何現有目錄或自訂名稱。" FontSize="10.5" Foreground="#6C7086"/>
+                <TextBlock Text="💡 提示：您可以指定任何現有目錄或自訂名稱。" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}"/>
             </StackPanel>
         </Border>
 
-        <!-- Section 2: Preview Background Mode -->
-        <Border Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
+        <!-- Section 2: App UI Theme Mode -->
+        <Border Grid.Row="1" Background="{DynamicResource DialogCardBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="🌗 軟體介面主題色彩" FontSize="14" FontWeight="Bold" Foreground="#89DCEB"/>
+                <TextBlock Text="切換整個程式主體外觀的顏色風格：" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,10"/>
+                
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- App Theme System (Default) -->
+                    <RadioButton Grid.Column="0" Name="RadioAppThemeSystem" GroupName="AppThemeGroup" Margin="0,0,6,0" Cursor="Hand" VerticalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="20" Height="20" Background="#313244" BorderBrush="#45475A" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0"/>
+                            <TextBlock Text="跟隨系統 (預設)" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- App Theme Dark -->
+                    <RadioButton Grid.Column="1" Name="RadioAppThemeDark" GroupName="AppThemeGroup" Margin="0,0,6,0" Cursor="Hand" VerticalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="20" Height="20" Background="#181825" BorderBrush="#45475A" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0"/>
+                            <TextBlock Text="深色" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- App Theme Light -->
+                    <RadioButton Grid.Column="2" Name="RadioAppThemeLight" GroupName="AppThemeGroup" Cursor="Hand" VerticalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="20" Height="20" Background="#EFF1F5" BorderBrush="#BCC0CC" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0"/>
+                            <TextBlock Text="淺色" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </RadioButton>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Section 3: Preview Slot Background Mode -->
+        <Border Grid.Row="2" Background="{DynamicResource DialogCardBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
             <StackPanel>
                 <TextBlock Text="🎨 游標預覽背景底色" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7"/>
-                <TextBlock Text="調整主畫面 15 格游標預覽格的底色，方便看清深色或透明游標：" FontSize="11" Foreground="#A6ADC8" Margin="0,4,0,10"/>
+                <TextBlock Text="調整 15 格游標預覽格的底色，方便看清深色或透明游標：" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,10"/>
                 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -78,7 +118,7 @@
                     <RadioButton Grid.Column="0" Name="RadioBgDark" GroupName="BgGroup" Margin="0,0,6,0" Cursor="Hand" VerticalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <Border Width="20" Height="20" Background="#11111B" BorderBrush="#45475A" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0"/>
-                            <TextBlock Text="深色 (預設)" FontSize="12" VerticalAlignment="Center" Foreground="#CDD6F4"/>
+                            <TextBlock Text="深色 (預設)" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </RadioButton>
 
@@ -86,15 +126,15 @@
                     <RadioButton Grid.Column="1" Name="RadioBgLight" GroupName="BgGroup" Margin="0,0,6,0" Cursor="Hand" VerticalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <Border Width="20" Height="20" Background="#F2F4F8" BorderBrush="#BCC0CC" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0"/>
-                            <TextBlock Text="淺色" FontSize="12" VerticalAlignment="Center" Foreground="#CDD6F4"/>
+                            <TextBlock Text="淺色" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </RadioButton>
 
-                    <!-- Checkerboard Option -->
+                    <!-- Transparent / Checkerboard Option -->
                     <RadioButton Grid.Column="2" Name="RadioBgChecker" GroupName="BgGroup" Cursor="Hand" VerticalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <Border Width="20" Height="20" Background="{StaticResource CheckerboardBrush}" BorderBrush="#45475A" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0"/>
-                            <TextBlock Text="棋盤格" FontSize="12" VerticalAlignment="Center" Foreground="#CDD6F4"/>
+                            <TextBlock Text="透明" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </RadioButton>
                 </Grid>
@@ -104,7 +144,7 @@
         <!-- Actions -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
             <Button Content="取消" Width="75" Height="32" Margin="0,0,10,0" Click="BtnCancel_Click"
-                    Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A" Cursor="Hand"/>
+                    Background="{DynamicResource ButtonBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderColorBrush}" Cursor="Hand"/>
             <Button Content="儲存設定" Width="85" Height="32" Click="BtnSave_Click" IsDefault="True"
                     Background="#1E66F5" Foreground="#FFFFFF" BorderBrush="#7287FD" FontWeight="Bold" Cursor="Hand"/>
         </StackPanel>

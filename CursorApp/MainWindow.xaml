@@ -9,8 +9,8 @@
         Height="800" Width="1240"
         MinHeight="680" MinWidth="1100"
         WindowStartupLocation="CenterScreen"
-        Background="#181825"
-        Foreground="#CDD6F4"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="Microsoft JhengHei UI, Segoe UI, sans-serif"
         AllowDrop="True"
         DragOver="Window_DragOver"
@@ -38,23 +38,36 @@
             </DrawingBrush.Drawing>
         </DrawingBrush>
 
+        <!-- Dynamic Theme Colors -->
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="BottomBarBackgroundBrush" Color="#11111B"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#CDD6F4"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A6ADC8"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#6C7086"/>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="CardItemInnerBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="BorderColorBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="DialogCardBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="DialogInputBrush" Color="#181825"/>
+
         <!-- Dynamic Preview Slot Background Brush -->
         <SolidColorBrush x:Key="SlotPreviewBackgroundBrush" Color="#11111B"/>
 
-        <!-- Modern Scrollbar & Style Resources -->
-        <SolidColorBrush x:Key="CardBackground" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="CardBorder" Color="#313244"/>
-        <SolidColorBrush x:Key="CardHover" Color="#45475A"/>
+        <!-- Accent Colors -->
         <SolidColorBrush x:Key="PrimaryAccent" Color="#89B4FA"/>
         <SolidColorBrush x:Key="SuccessColor" Color="#A6E3A1"/>
         <SolidColorBrush x:Key="WarningColor" Color="#F9E2AF"/>
         <SolidColorBrush x:Key="SubText" Color="#A6ADC8"/>
 
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#45475A"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
             <Setter Property="Padding" Value="12,7"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontSize" Value="13"/>
@@ -179,7 +192,7 @@
         </Grid.RowDefinitions>
 
         <!-- TOP BAR: Drag & Drop Banner + Title -->
-        <Border Grid.Row="0" Background="#11111B" BorderBrush="#313244" BorderThickness="0,0,0,1" Padding="14,10">
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,0,0,1" Padding="14,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -191,16 +204,16 @@
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="✨" FontSize="18" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="鼠標游標一鍵套用器" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                        <TextBlock Text="鼠標游標一鍵套用器" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccent}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="拖曳資料夾至此視窗即可自動配對 15 項游標並立即生效" FontSize="10.5" Foreground="#A6ADC8" Margin="23,2,0,0"/>
+                    <TextBlock Text="拖曳資料夾至此視窗即可自動配對 15 項游標並立即生效" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="23,2,0,0"/>
                 </StackPanel>
 
                 <!-- Big Drag & Drop Dropzone Button -->
                 <Border Grid.Column="1" 
                         Name="DropZoneBorder"
-                        Background="#181825" 
-                        BorderBrush="#89B4FA" 
+                        Background="{DynamicResource CardItemInnerBackgroundBrush}" 
+                        BorderBrush="{DynamicResource PrimaryAccent}" 
                         BorderThickness="1.5" 
                         CornerRadius="8" 
                         Padding="10,6"
@@ -212,8 +225,8 @@
                         Drop="Window_Drop">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock Text="📂" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="把任何游標資料夾「拖曳到這裡」自動分配" FontSize="12.5" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="（或點此手動選擇）" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBlock Text="把任何游標資料夾「拖曳到這裡」自動分配" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="（或點此手動選擇）" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                     </StackPanel>
                 </Border>
 
@@ -222,7 +235,7 @@
                     <Button Content="📥 擷取游標" Click="BtnCaptureCurrentSystem_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
                             ToolTip="將目前 Windows 正在使用的滑鼠游標直接存為新主題"/>
                     <Button Content="⚙️ 設定" Click="OpenSettings_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
-                            ToolTip="資料夾位置與預覽外觀設定"/>
+                            ToolTip="資料夾位置與外觀設定"/>
                     <Button Content="🖱️ 系統設定" Click="OpenWindowsMouseSettings_Click" Padding="8,5" FontSize="11.5"/>
                 </StackPanel>
             </Grid>
@@ -237,7 +250,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- LEFT PANEL: Character & Theme Library -->
-            <Grid Grid.Column="0" Background="#181825">
+            <Grid Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -248,23 +261,23 @@
                 <Border Grid.Row="0" Padding="14,10,14,6">
                     <Grid>
                         <TextBlock Text="內建游標庫" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7" VerticalAlignment="Center"/>
-                        <TextBlock Name="TxtThemeCount" Text="0 個主題" FontSize="11" Foreground="#A6ADC8" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock Name="TxtThemeCount" Text="0 個主題" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 
                 <!-- Search Box -->
-                <Border Grid.Row="1" Margin="12,0,12,8" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1" CornerRadius="6" Padding="6,4">
+                <Border Grid.Row="1" Margin="12,0,12,8" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Padding="6,4">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="🔍" FontSize="12" Foreground="#A6ADC8" VerticalAlignment="Center" Margin="4,0,6,0"/>
-                        <TextBox Grid.Column="1" Name="TxtSearch" Background="Transparent" Foreground="#CDD6F4" BorderThickness="0"
+                        <TextBlock Grid.Column="0" Text="🔍" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,6,0"/>
+                        <TextBox Grid.Column="1" Name="TxtSearch" Background="Transparent" Foreground="{DynamicResource TextPrimaryBrush}" BorderThickness="0"
                                  FontSize="12" VerticalAlignment="Center" TextChanged="TxtSearch_TextChanged"
-                                 CaretBrush="#89B4FA"/>
-                        <TextBlock Grid.Column="1" Text="搜尋主題或名稱..." FontSize="12" Foreground="#6C7086" VerticalAlignment="Center" IsHitTestVisible="False"
+                                 CaretBrush="{DynamicResource PrimaryAccent}"/>
+                        <TextBlock Grid.Column="1" Text="搜尋主題或名稱..." FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" IsHitTestVisible="False"
                                    Visibility="{Binding Text.IsEmpty, ElementName=TxtSearch, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
                     </Grid>
                 </Border>
@@ -281,7 +294,7 @@
                          Padding="6,0,6,6">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="2,3">
+                            <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="2,3">
                                 <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="✏️ 重新命名此主題" Click="MenuRenameTheme_Click"/>
@@ -298,19 +311,19 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Cursor Icon Preview -->
-                                    <Border Grid.Column="0" Width="30" Height="30" Background="#11111B" CornerRadius="6" Margin="0,0,8,0">
+                                    <Border Grid.Column="0" Width="30" Height="30" Background="{DynamicResource CardItemInnerBackgroundBrush}" CornerRadius="6" Margin="0,0,8,0">
                                         <Image Source="{Binding PreviewImage}" Width="24" Height="24" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                                     </Border>
 
                                     <!-- Info -->
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="#CDD6F4" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Group}" FontSize="10" Foreground="#A6ADC8" Margin="0,1,0,0"/>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Group}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,1,0,0"/>
                                     </StackPanel>
 
                                     <!-- File count badge -->
-                                    <Border Grid.Column="2" Background="#313244" CornerRadius="10" Padding="6,2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding FileCount, StringFormat='{}{0} 圖標'}" FontSize="10" Foreground="#89B4FA"/>
+                                    <Border Grid.Column="2" Background="{DynamicResource BorderColorBrush}" CornerRadius="10" Padding="6,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding FileCount, StringFormat='{}{0} 圖標'}" FontSize="10" Foreground="{DynamicResource PrimaryAccent}"/>
                                     </Border>
                                 </Grid>
                             </Border>
@@ -334,17 +347,17 @@
             </Grid>
 
             <!-- SPLITTER -->
-            <GridSplitter Grid.Column="1" Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="#313244"/>
+            <GridSplitter Grid.Column="1" Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="{DynamicResource BorderColorBrush}"/>
 
             <!-- RIGHT PANEL: Current Folder & 15 Slots Grid -->
-            <Grid Grid.Column="2" Background="#1E1E2E">
+            <Grid Grid.Column="2" Background="{DynamicResource ContentBackgroundBrush}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Folder Info Header -->
                     <RowDefinition Height="*"/>    <!-- 15 Slots ScrollViewer Grid -->
                 </Grid.RowDefinitions>
 
                 <!-- Current Folder Header -->
-                <Border Grid.Row="0" Background="#181825" BorderBrush="#313244" BorderThickness="0,0,0,1" Padding="16,10">
+                <Border Grid.Row="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,0,0,1" Padding="16,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -352,10 +365,10 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="當前準備套用：" FontSize="12" Foreground="#A6ADC8" VerticalAlignment="Center"/>
-                                <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="#A6E3A1" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="當前準備套用：" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SuccessColor}" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾拖曳進來" FontSize="11" Foreground="#6C7086" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾拖曳進來" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                         <Button Grid.Column="1" Content="🔄 重新配對本目錄" Click="BtnRematch_Click" Padding="10,5" FontSize="11" VerticalAlignment="Center"/>
                     </Grid>
@@ -371,7 +384,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="235" Height="86" Background="#181825" BorderBrush="{Binding HasFile, Converter={x:Static local:HasFileToBorderBrushConverter.Instance}}" BorderThickness="1.5" CornerRadius="8" Margin="5" Padding="8">
+                                <Border Width="235" Height="86" Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{Binding HasFile, Converter={x:Static local:HasFileToBorderBrushConverter.Instance}}" BorderThickness="1.5" CornerRadius="8" Margin="5" Padding="8">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="46"/>
@@ -379,7 +392,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <!-- Preview Box -->
-                                        <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="#313244" BorderThickness="1" CornerRadius="6" Width="40" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Width="40" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">
                                             <Grid>
                                                 <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                                                 <!-- If no preview icon -->
@@ -390,7 +403,7 @@
 
                                         <!-- Slot Info -->
                                         <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="13" Foreground="#CDD6F4" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding FileName}" FontSize="10" Foreground="{Binding HasFile, Converter={x:Static local:HasFileToTextBrushConverter.Instance}}" 
                                                        TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding FilePath}"/>
                                         </StackPanel>
@@ -404,7 +417,7 @@
         </Grid>
 
         <!-- BOTTOM STATUS & ACTION BAR -->
-        <Border Grid.Row="2" Background="#11111B" BorderBrush="#313244" BorderThickness="0,1,0,0" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource BottomBarBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,1,0,0" Padding="16,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -415,13 +428,13 @@
                 <!-- Status Feedback -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Name="TxtStatusIcon" Text="💡" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBlock Name="TxtStatusMessage" Text="已就緒。可點選左側角色或拖曳資料夾，然後點擊「一鍵套用」。" FontSize="13" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                    <TextBlock Name="TxtStatusMessage" Text="已就緒。可點選左側角色或拖曳資料夾，然後點擊「一鍵套用」。" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Version Tag & Update Button in bottom center -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
-                    <Border Background="#181825" BorderBrush="#313244" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
-                        <TextBlock Name="TxtVersion" Text="v2.6" FontSize="11" FontWeight="SemiBold" Foreground="#6C7086"/>
+                    <Border Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Name="TxtVersion" Text="v2.7.0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
                     </Border>
                     
                     <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click" 
