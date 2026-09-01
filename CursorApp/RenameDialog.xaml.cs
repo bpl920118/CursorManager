@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public partial class RenameDialog : Window
     {
@@ -20,7 +20,7 @@ namespace HololiveCursorApp
             string text = TxtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(text))
             {
-                MessageBox.Show("主題名稱不可為空！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ConfirmDialog.Alert(this, "提示", "主題名稱不可為空！", kind: ConfirmDialogKind.Warning);
                 return;
             }
 

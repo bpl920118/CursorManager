@@ -1,0 +1,140 @@
+<local:ThemedDialogWindow x:Class="CursorManager.ConfirmDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:CursorManager"
+        Title="確認" SizeToContent="WidthAndHeight" MinWidth="420" MaxWidth="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontFamily="Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif">
+
+    <Border Margin="20" Background="{DynamicResource DialogCardBrush}"
+            BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="10" Padding="18,16">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Icon -->
+            <Border x:Name="IconBorder" Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" Width="42" Height="42"
+                    Background="#1E66F522" BorderBrush="#7287FD55" BorderThickness="1.5"
+                    CornerRadius="21" Margin="0,0,14,0" VerticalAlignment="Top">
+                <TextBlock x:Name="IconGlyph" Text="?" FontSize="22" FontWeight="Bold" Foreground="#89B4FA"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+
+            <!-- Headline -->
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtHeadline"
+                       TextWrapping="Wrap" FontSize="14" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+
+            <!-- Message -->
+            <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtMessage"
+                       TextWrapping="Wrap" FontSize="12.5" LineHeight="20"
+                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+
+            <!-- Path highlight box -->
+            <Border Grid.Row="2" Grid.Column="1" Name="PathPanel" Margin="0,0,0,10"
+                    Background="{DynamicResource DialogInputBrush}"
+                    BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1"
+                    CornerRadius="6" Padding="10,8">
+                <StackPanel>
+                    <TextBlock Name="TxtPathLabel" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryAccent}" Margin="0,0,0,4"/>
+                    <TextBlock Name="TxtPathValue" TextWrapping="Wrap" FontSize="11.5"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bullet points -->
+            <ItemsControl Grid.Row="3" Grid.Column="1" Name="BulletList" Margin="0,0,0,8">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                            <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource PrimaryAccent}"
+                                       Margin="0,0,6,0" VerticalAlignment="Top"/>
+                            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11.5" LineHeight="18"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Footer note -->
+            <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtFooterNote"
+                       TextWrapping="Wrap" FontSize="10.5" FontStyle="Italic"
+                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,14"/>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                        Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Name="BtnYes" Content="是" Width="72" Height="32" Margin="0,0,8,0"
+                        Click="BtnYes_Click" IsDefault="True" Cursor="Hand"
+                        Background="#1E66F5" Foreground="#FFFFFF" BorderBrush="#7287FD" FontWeight="Bold">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="10,6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#7287FD"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <Button Name="BtnNo" Content="否" Width="72" Height="32" Margin="0,0,8,0"
+                        Click="BtnNo_Click" Cursor="Hand"
+                        Background="{DynamicResource ButtonBackgroundBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource BorderColorBrush}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="10,6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="#89B4FA"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <Button Name="BtnCancel" Content="取消" Width="75" Height="32"
+                        Click="BtnCancel_Click" IsCancel="True" Cursor="Hand"
+                        Background="{DynamicResource ButtonBackgroundBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource BorderColorBrush}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="10,6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</local:ThemedDialogWindow>

@@ -10,15 +10,27 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public partial class MainWindow : Window
     {
         private List<CharacterThemeItem> _allThemes = new();
+        private readonly List<CharacterThemeItem> _temporaryThemes = new();
         private ObservableCollection<CursorSlot> _currentSlots = new();
         private string _currentLoadedFolder = string.Empty;
-        private string _currentThemeName = "自訂游標";
+        private string _appliedFolderPath = string.Empty;
+        private string _appliedThemeName = string.Empty;
+        private string _currentThemeName = "自訂鼠標";
         private DispatcherTimer? _aniTimer;
+        private string _currentAppTheme = "System";
+        private string _currentBgMode = "Theme";
+        private string _currentUiScale = UiScaleHelper.DefaultPreset;
+        private int _cursorSizePx = MousePointerSizeHelper.DefaultPx;
+        private string _cursorScaleMode = MousePointerSizeHelper.DefaultMode;
+        private bool _suppressPointerSizeEvent;
+        private bool _schemePromptOpen;
+        private bool _schemePromptDismissed;
+        private DispatcherTimer? _pointerSizeApplyTimer;
 
         public MainWindow()
         {
@@ -59,14 +71,24 @@ namespace HololiveCursorApp
             }
 
             Loaded += MainWindow_Loaded;
+            Activated += MainWindow_Activated;
+
+            var settings = LoadAppSettings();
+            _currentAppTheme = settings.AppTheme;
+            _currentBgMode = settings.BgMode;
+            _currentUiScale = settings.UiScale;
+            _cursorSizePx = settings.CursorSizePx;
+            _cursorScaleMode = settings.CursorScaleMode;
+            _appliedFolderPath = settings.AppliedFolderPath;
+            _appliedThemeName = settings.AppliedThemeName;
+            ApplyAppTheme(_currentAppTheme);
+            ApplyPreviewBackground(_currentBgMode, _currentAppTheme);
+            ApplyUiScale(_currentUiScale);
+            SyncPointerSizeUi();
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var (_, savedTheme, savedBg) = LoadAppSettings();
-            ApplyAppTheme(savedTheme);
-            ApplyPreviewBackground(savedBg);
-
             await ReloadThemesAsync();
 
             // Check if launched with folder argument (e.g. dragged onto exe)
@@ -91,6 +113,13 @@ namespace HololiveCursorApp
 
             // Silent background update check on startup
             _ = CheckUpdateSilentlyAsync();
+            RefreshInUseBadges();
+            MaybePromptSchemeRestore();
+        }
+
+        private void MainWindow_Activated(object? sender, EventArgs e)
+        {
+            MaybePromptSchemeRestore();
         }
 
         private async Task CheckUpdateSilentlyAsync()
@@ -109,71 +138,283 @@ namespace HololiveCursorApp
 
         private const string ConfigFileName = "config.ini";
 
+        private sealed class AppSettingsData
+        {
+            public string FolderPath { get; set; } = string.Empty;
+            public string AppTheme { get; set; } = "System";
+            public string BgMode { get; set; } = "Theme";
+            public string UiScale { get; set; } = UiScaleHelper.DefaultPreset;
+            public int CursorSizePx { get; set; } = MousePointerSizeHelper.DefaultPx;
+            public string CursorScaleMode { get; set; } = MousePointerSizeHelper.DefaultMode;
+            public string AppliedFolderPath { get; set; } = string.Empty;
+            public string AppliedThemeName { get; set; } = string.Empty;
+        }
+
         private static string GetConfigFilePath()
         {
             string appDir = AppDomain.CurrentDomain.BaseDirectory;
             return Path.Combine(appDir, ConfigFileName);
         }
 
-        private static (string FolderPath, string AppTheme, string BgMode) LoadAppSettings()
+        private static AppSettingsData LoadAppSettings()
         {
+            var data = new AppSettingsData();
             string configPath = GetConfigFilePath();
-            string path = string.Empty;
-            string appTheme = "System";
-            string bgMode = "Dark";
 
-            if (File.Exists(configPath))
+            if (!File.Exists(configPath))
+                return data;
+
+            try
             {
-                try
+                foreach (var line in File.ReadAllLines(configPath))
                 {
-                    var lines = File.ReadAllLines(configPath);
-                    foreach (var line in lines)
-                    {
-                        var trimmed = line.Trim();
-                        if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith(";")) continue;
+                    var trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith(";")) continue;
 
-                        if (trimmed.Contains("="))
-                        {
-                            var parts = trimmed.Split(new[] { '=' }, 2);
-                            var key = parts[0].Trim();
-                            var val = parts[1].Trim();
-                            if (key.Equals("CursorsDataPath", StringComparison.OrdinalIgnoreCase) || key.Equals("FolderPath", StringComparison.OrdinalIgnoreCase) || key.Equals("StoragePath", StringComparison.OrdinalIgnoreCase))
-                            {
-                                path = val;
-                            }
-                            else if (key.Equals("AppTheme", StringComparison.OrdinalIgnoreCase) || key.Equals("Theme", StringComparison.OrdinalIgnoreCase) || key.Equals("UITheme", StringComparison.OrdinalIgnoreCase))
-                            {
-                                appTheme = val;
-                            }
-                            else if (key.Equals("PreviewBg", StringComparison.OrdinalIgnoreCase) || key.Equals("PreviewBackground", StringComparison.OrdinalIgnoreCase) || key.Equals("BgMode", StringComparison.OrdinalIgnoreCase))
-                            {
-                                bgMode = val;
-                            }
-                        }
-                        else if (string.IsNullOrEmpty(path))
-                        {
-                            // Backward compatibility: old format where whole file was just the path
-                            path = trimmed;
-                        }
+                    if (trimmed.Contains("="))
+                    {
+                        var parts = trimmed.Split(new[] { '=' }, 2);
+                        var key = parts[0].Trim();
+                        var val = parts[1].Trim();
+                        if (key.Equals("CursorsDataPath", StringComparison.OrdinalIgnoreCase) || key.Equals("FolderPath", StringComparison.OrdinalIgnoreCase) || key.Equals("StoragePath", StringComparison.OrdinalIgnoreCase))
+                            data.FolderPath = val;
+                        else if (key.Equals("AppTheme", StringComparison.OrdinalIgnoreCase) || key.Equals("Theme", StringComparison.OrdinalIgnoreCase) || key.Equals("UITheme", StringComparison.OrdinalIgnoreCase))
+                            data.AppTheme = val;
+                        else if (key.Equals("PreviewBg", StringComparison.OrdinalIgnoreCase) || key.Equals("PreviewBackground", StringComparison.OrdinalIgnoreCase) || key.Equals("BgMode", StringComparison.OrdinalIgnoreCase))
+                            data.BgMode = val;
+                        else if (key.Equals("UiScale", StringComparison.OrdinalIgnoreCase) || key.Equals("UIScale", StringComparison.OrdinalIgnoreCase) || key.Equals("InterfaceScale", StringComparison.OrdinalIgnoreCase))
+                            data.UiScale = val;
+                        else if (key.Equals("CursorSizePx", StringComparison.OrdinalIgnoreCase) ||
+                                 key.Equals("CursorSizeLevel", StringComparison.OrdinalIgnoreCase) ||
+                                 key.Equals("PointerSize", StringComparison.OrdinalIgnoreCase) ||
+                                 key.Equals("MouseSize", StringComparison.OrdinalIgnoreCase))
+                            data.CursorSizePx = MousePointerSizeHelper.ParseSize(val);
+                        else if (key.Equals("CursorScaleMode", StringComparison.OrdinalIgnoreCase) || key.Equals("PointerScaleMode", StringComparison.OrdinalIgnoreCase))
+                            data.CursorScaleMode = MousePointerSizeHelper.NormalizeMode(val);
+                        else if (key.Equals("AppliedFolderPath", StringComparison.OrdinalIgnoreCase) || key.Equals("LastAppliedFolder", StringComparison.OrdinalIgnoreCase))
+                            data.AppliedFolderPath = val;
+                        else if (key.Equals("AppliedThemeName", StringComparison.OrdinalIgnoreCase) || key.Equals("LastAppliedTheme", StringComparison.OrdinalIgnoreCase))
+                            data.AppliedThemeName = val;
+                    }
+                    else if (string.IsNullOrEmpty(data.FolderPath))
+                    {
+                        data.FolderPath = trimmed;
                     }
                 }
-                catch { }
             }
+            catch { }
 
-            return (path, appTheme, bgMode);
+            data.UiScale = UiScaleHelper.NormalizePreset(data.UiScale);
+            data.CursorSizePx = MousePointerSizeHelper.NormalizePx(data.CursorSizePx);
+            data.CursorScaleMode = MousePointerSizeHelper.NormalizeMode(data.CursorScaleMode);
+            return data;
         }
 
-        private static void SaveAppSettings(string folderPath, string appTheme, string bgMode)
+        private void PersistAppSettings()
+        {
+            SaveAppSettings(
+                GetCursorsDataFolder(),
+                _currentAppTheme,
+                _currentBgMode,
+                _currentUiScale,
+                _cursorSizePx,
+                _cursorScaleMode,
+                _appliedFolderPath,
+                _appliedThemeName);
+        }
+
+        private static void SaveAppSettings(
+            string folderPath,
+            string appTheme,
+            string bgMode,
+            string uiScale,
+            int cursorSizePx = MousePointerSizeHelper.DefaultPx,
+            string cursorScaleMode = MousePointerSizeHelper.DefaultMode,
+            string appliedFolderPath = "",
+            string appliedThemeName = "")
         {
             try
             {
                 string configPath = GetConfigFilePath();
-                var content = $"FolderPath={folderPath}\nAppTheme={appTheme}\nPreviewBg={bgMode}\n";
+                var content =
+                    $"FolderPath={folderPath}\n" +
+                    $"AppTheme={appTheme}\n" +
+                    $"PreviewBg={bgMode}\n" +
+                    $"UiScale={UiScaleHelper.NormalizePreset(uiScale)}\n" +
+                    $"CursorSizePx={MousePointerSizeHelper.NormalizePx(cursorSizePx)}\n" +
+                    $"CursorScaleMode={MousePointerSizeHelper.NormalizeMode(cursorScaleMode)}\n" +
+                    $"AppliedFolderPath={appliedFolderPath}\n" +
+                    $"AppliedThemeName={appliedThemeName}\n";
                 File.WriteAllText(configPath, content);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("儲存設定檔失敗：" + ex.Message);
+                ConfirmDialog.Alert(Application.Current?.MainWindow, "錯誤", "儲存設定檔失敗：" + ex.Message, kind: ConfirmDialogKind.Error);
+            }
+        }
+
+        private void SyncPointerSizeUi()
+        {
+            _suppressPointerSizeEvent = true;
+            try
+            {
+                if (SliderPointerSize != null)
+                    SliderPointerSize.Value = _cursorSizePx;
+                if (TxtPointerSizeLabel != null)
+                    TxtPointerSizeLabel.Text = MousePointerSizeHelper.GetPxLabel(_cursorSizePx);
+            }
+            finally
+            {
+                _suppressPointerSizeEvent = false;
+            }
+        }
+
+        private void SliderPointerSize_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_suppressPointerSizeEvent || TxtPointerSizeLabel == null)
+                return;
+
+            int px = MousePointerSizeHelper.NormalizePx((int)Math.Round(e.NewValue));
+            TxtPointerSizeLabel.Text = MousePointerSizeHelper.GetPxLabel(px);
+
+            if (px == _cursorSizePx)
+                return;
+
+            _cursorSizePx = px;
+            SchedulePointerSizeApply();
+        }
+
+        private void SchedulePointerSizeApply()
+        {
+            _pointerSizeApplyTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+            _pointerSizeApplyTimer.Tick -= PointerSizeApplyTimer_Tick;
+            _pointerSizeApplyTimer.Tick += PointerSizeApplyTimer_Tick;
+            _pointerSizeApplyTimer.Stop();
+            _pointerSizeApplyTimer.Start();
+        }
+
+        private void PointerSizeApplyTimer_Tick(object? sender, EventArgs e)
+        {
+            _pointerSizeApplyTimer?.Stop();
+            ApplyPointerSizeFromUi();
+        }
+
+        private void ApplyPointerSizeFromUi()
+        {
+            PersistAppSettings();
+
+            if (!string.IsNullOrEmpty(_appliedFolderPath) && Directory.Exists(_appliedFolderPath))
+            {
+                if (string.Equals(_currentLoadedFolder, _appliedFolderPath, StringComparison.OrdinalIgnoreCase)
+                    && _currentSlots.Any(s => s.HasFile))
+                {
+                    TryApplyCurrentTheme(silent: true);
+                }
+                else
+                {
+                    ReapplyStoredTheme(silent: true);
+                }
+            }
+            else if (_currentSlots.Any(s => s.HasFile))
+            {
+                CursorInstaller.ApplyPointerSizeOnly(_cursorSizePx, _cursorScaleMode, _currentSlots);
+            }
+            else
+            {
+                CursorInstaller.ApplyPointerSizeOnly(_cursorSizePx, _cursorScaleMode);
+            }
+
+            SetStatus("🖱️", $"鼠標大小已調整成 {MousePointerSizeHelper.NormalizePx(_cursorSizePx)} PX", Color.FromRgb(0xA6, 0xE3, 0xA1));
+        }
+
+        private void BtnReapplyLast_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_appliedFolderPath) || !Directory.Exists(_appliedFolderPath))
+            {
+                ConfirmDialog.Alert(this, "提示", "尚無已記住的鼠標方案。", "請先成功「套用」一次主題。");
+                return;
+            }
+
+            if (ReapplyStoredTheme(silent: false))
+            {
+                _schemePromptDismissed = false;
+                ConfirmDialog.Alert(this, "套用成功",
+                    $"已套用「{(_appliedThemeName.Length > 0 ? _appliedThemeName : Path.GetFileName(_appliedFolderPath))}」",
+                    $"鼠標大小：{MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}",
+                    ConfirmDialogKind.Success);
+            }
+        }
+
+        private bool ReapplyStoredTheme(bool silent)
+        {
+            if (string.IsNullOrEmpty(_appliedFolderPath) || !Directory.Exists(_appliedFolderPath))
+            {
+                if (!silent)
+                    ConfirmDialog.Alert(this, "提示", "找不到上次套用的主題資料夾。", kind: ConfirmDialogKind.Warning);
+                return false;
+            }
+
+            try
+            {
+                string name = string.IsNullOrEmpty(_appliedThemeName) ? Path.GetFileName(_appliedFolderPath) : _appliedThemeName;
+                LoadFolder(_appliedFolderPath, name);
+                TryApplyCurrentTheme(silent: true);
+                _schemePromptDismissed = false;
+                if (!silent)
+                    SetStatus("🔁", $"已套用「{name}」（{MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}）", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (!silent)
+                    ConfirmDialog.Alert(this, "錯誤", "套用失敗：" + ex.Message, kind: ConfirmDialogKind.Error);
+                return false;
+            }
+        }
+
+        private void MaybePromptSchemeRestore()
+        {
+            if (_schemePromptOpen) return;
+            if (string.IsNullOrEmpty(_appliedFolderPath)) return;
+            if (!Directory.Exists(_appliedFolderPath)) return;
+
+            if (CursorInstaller.IsAppliedSchemeStillActive(_appliedFolderPath))
+            {
+                _schemePromptDismissed = false;
+                return;
+            }
+
+            // User already chose「否」for this mismatch — don't spam on every Activated.
+            if (_schemePromptDismissed) return;
+
+            _schemePromptOpen = true;
+            try
+            {
+                string name = string.IsNullOrEmpty(_appliedThemeName) ? Path.GetFileName(_appliedFolderPath) : _appliedThemeName;
+                var result = ConfirmDialog.Show(this, new ConfirmDialogOptions
+                {
+                    Title = "鼠標方案已變更",
+                    Headline = $"目前鼠標不是「{name}」",
+                    Message = "鼠標已變更，要重新套用嗎？",
+                    Buttons = ConfirmDialogButtons.YesNo,
+                    Kind = ConfirmDialogKind.Question,
+                    YesText = "套用",
+                    NoText = "略過"
+                });
+
+                if (result == ConfirmDialogResult.Yes)
+                {
+                    if (!ReapplyStoredTheme(silent: true))
+                        _schemePromptDismissed = true;
+                }
+                else
+                {
+                    _schemePromptDismissed = true;
+                }
+            }
+            finally
+            {
+                _schemePromptOpen = false;
             }
         }
 
@@ -197,10 +438,22 @@ namespace HololiveCursorApp
             return true; // Default to dark mode
         }
 
+        private void ApplyUiScale(string uiScalePreset)
+        {
+            try
+            {
+                _currentUiScale = UiScaleHelper.NormalizePreset(uiScalePreset);
+                double scale = UiScaleHelper.GetEffectiveScale(_currentUiScale);
+                RootScaleGrid.LayoutTransform = new ScaleTransform(scale, scale);
+            }
+            catch { }
+        }
+
         private void ApplyAppTheme(string appTheme)
         {
             try
             {
+                _currentAppTheme = appTheme;
                 bool isLight = false;
                 if (appTheme.Equals("Light", StringComparison.OrdinalIgnoreCase))
                 {
@@ -216,68 +469,132 @@ namespace HololiveCursorApp
                     isLight = !IsSystemInDarkMode();
                 }
 
+                var appRes = Application.Current.Resources;
+
                 if (isLight)
                 {
                     // Light Theme Palette
-                    Resources["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF5));
-                    Resources["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
-                    Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE6, 0xE9, 0xEF));
-                    Resources["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF5));
-                    Resources["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDC, 0xE0, 0xE8));
-                    Resources["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0x4C, 0x4F, 0x69));
-                    Resources["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0x5C, 0x5F, 0x77));
-                    Resources["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x8C, 0x8F, 0xA1));
-                    Resources["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-                    Resources["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
-                    Resources["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0xCC, 0xD0, 0xDA));
-                    Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDF, 0xE3, 0xEB));
-                    Resources["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-                    Resources["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
+                    appRes["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF5));
+                    appRes["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
+                    appRes["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE6, 0xE9, 0xEF));
+                    appRes["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF5));
+                    appRes["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDC, 0xE0, 0xE8));
+                    appRes["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0x4C, 0x4F, 0x69));
+                    appRes["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0x5C, 0x5F, 0x77));
+                    appRes["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x8C, 0x8F, 0xA1));
+                    appRes["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    appRes["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
+                    appRes["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0xCC, 0xD0, 0xDA));
+                    appRes["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDF, 0xE3, 0xEB));
+                    appRes["ButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xC4, 0xCA, 0xD8));
+                    appRes["ButtonPressedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xB0, 0xB7, 0xC8));
+                    appRes["ButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2C, 0x2E, 0x42));
+                    appRes["SecondaryButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    appRes["SecondaryButtonForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xD6, 0x33, 0x6C));
+                    appRes["SecondaryButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(0xE0, 0xC4, 0xCC));
+                    appRes["SecondaryButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFD, 0xE8, 0xEF));
+                    appRes["SecondaryButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x5C));
+                    appRes["ItemHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE8, 0xEC, 0xF4));
+                    appRes["ItemSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDC, 0xE6, 0xFA));
+                    appRes["ItemSelectedHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xCF, 0xDB, 0xF5));
+                    appRes["SlotHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE8, 0xEC, 0xF4));
+                    appRes["SlotSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDC, 0xE6, 0xFA));
+                    appRes["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    appRes["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
+                    appRes["SuccessFileTextBrush"] = new SolidColorBrush(Color.FromRgb(0x2D, 0x8A, 0x4E));
                 }
                 else
                 {
                     // Dark Theme Palette (Default)
-                    Resources["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
-                    Resources["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    Resources["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
-                    Resources["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    Resources["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
-                    Resources["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4));
-                    Resources["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xAD, 0xC8));
-                    Resources["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x6C, 0x70, 0x86));
-                    Resources["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    Resources["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
-                    Resources["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
-                    Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
-                    Resources["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    Resources["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    appRes["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    appRes["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
+                    appRes["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4));
+                    appRes["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xAD, 0xC8));
+                    appRes["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x6C, 0x70, 0x86));
+                    appRes["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    appRes["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    appRes["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    appRes["ButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
+                    appRes["ButtonPressedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x58, 0x5B, 0x70));
+                    appRes["ButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4));
+                    appRes["SecondaryButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    appRes["SecondaryButtonForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF3, 0x8B, 0xA8));
+                    appRes["SecondaryButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
+                    appRes["SecondaryButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
+                    appRes["SecondaryButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF5, 0xC2, 0xD0));
+                    appRes["ItemHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x35));
+                    appRes["ItemSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x3C));
+                    appRes["ItemSelectedHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x32, 0x32, 0x4A));
+                    appRes["SlotHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x33));
+                    appRes["SlotSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x3C));
+                    appRes["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    appRes["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["SuccessFileTextBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1));
                 }
+
+                // Keep preview background in sync if it's following the theme
+                ApplyPreviewBackground(_currentBgMode, _currentAppTheme);
             }
             catch { }
         }
 
-        private void ApplyPreviewBackground(string bgMode)
+        private void ApplyPreviewBackground(string bgMode, string? appTheme = null)
         {
             try
             {
+                _currentBgMode = bgMode;
+                string themeToUse = appTheme ?? _currentAppTheme;
+                var appRes = Application.Current.Resources;
+                bool isLightPreviewBg;
+
                 if (bgMode.Equals("Light", StringComparison.OrdinalIgnoreCase))
                 {
-                    Resources["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
+                    appRes["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
+                    isLightPreviewBg = true;
                 }
-                else if (bgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) || 
+                else if (bgMode.Equals("Dark", StringComparison.OrdinalIgnoreCase))
+                {
+                    appRes["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
+                    isLightPreviewBg = false;
+                }
+                else if (bgMode.Equals("Checkerboard", StringComparison.OrdinalIgnoreCase) ||
                          bgMode.Equals("Checker", StringComparison.OrdinalIgnoreCase) ||
                          bgMode.Equals("Transparent", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (Resources["CheckerboardBrush"] is Brush checkerBrush)
-                    {
-                        Resources["SlotPreviewBackgroundBrush"] = checkerBrush;
-                    }
+                    if (appRes["CheckerboardBrush"] is Brush checkerBrush)
+                        appRes["SlotPreviewBackgroundBrush"] = checkerBrush;
+                    isLightPreviewBg = true;
                 }
                 else
                 {
-                    // Dark
-                    Resources["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
+                    bool isLight = false;
+                    if (themeToUse.Equals("Light", StringComparison.OrdinalIgnoreCase))
+                        isLight = true;
+                    else if (themeToUse.Equals("Dark", StringComparison.OrdinalIgnoreCase))
+                        isLight = false;
+                    else
+                        isLight = !IsSystemInDarkMode();
+
+                    if (isLight)
+                    {
+                        appRes["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF8));
+                        isLightPreviewBg = true;
+                    }
+                    else
+                    {
+                        appRes["SlotPreviewBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
+                        isLightPreviewBg = false;
+                    }
                 }
+
+                appRes["MissingSlotIconBrush"] = new SolidColorBrush(
+                    isLightPreviewBg
+                        ? Color.FromRgb(0x8C, 0x8F, 0xA1)
+                        : Color.FromRgb(0xF3, 0x8B, 0xA8));
             }
             catch { }
         }
@@ -286,7 +603,8 @@ namespace HololiveCursorApp
 
         private static string EnsureCursorsDataFolderInteractive(Window? owner)
         {
-            var (savedPath, _, _) = LoadAppSettings();
+            var settings = LoadAppSettings();
+            string savedPath = settings.FolderPath;
             if (!string.IsNullOrEmpty(savedPath))
             {
                 if (!Directory.Exists(savedPath))
@@ -303,26 +621,32 @@ namespace HololiveCursorApp
             if (!_hasPromptedStorageLocation)
             {
                 _hasPromptedStorageLocation = true;
-                var res = MessageBox.Show(
-                    "【首次使用設定】\n\n" +
-                    "即將建立存放與管理滑鼠游標主題的資料夾。\n" +
-                    $"預設位置：\n{defaultFolder}\n\n" +
-                    "• 點選「是 (Yes)」：使用預設位置建立 CursorsData 資料夾\n" +
-                    "• 點選「否 (No)」：自訂選擇或連結現有的資料夾",
-                    "游標資料夾位置設定",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (res == MessageBoxResult.No)
+                var res = ConfirmDialog.Show(owner, new ConfirmDialogOptions
                 {
-                    var dlg = new SettingsDialog(defaultFolder)
+                    Title = "鼠標資料夾位置設定",
+                    Headline = "【首次使用設定】",
+                    Message = "即將建立存放與管理鼠標主題的資料夾。",
+                    PathLabel = "預設位置",
+                    PathHighlight = defaultFolder,
+                    BulletPoints = new[]
+                    {
+                        "點選「是」：使用預設位置建立 CursorsData 資料夾",
+                        "點選「否」：自訂選擇或連結現有的資料夾"
+                    },
+                    Buttons = ConfirmDialogButtons.YesNo
+                });
+
+                if (res == ConfirmDialogResult.No)
+                {
+                    var cur = LoadAppSettings();
+                    var dlg = new SettingsDialog(defaultFolder, cur.AppTheme, cur.BgMode, cur.UiScale, cur.CursorSizePx, cur.CursorScaleMode)
                     {
                         Owner = owner
                     };
                     if (dlg.ShowDialog() == true)
                     {
-                        var (_, curTheme, curBg) = LoadAppSettings();
-                        SaveAppSettings(dlg.SelectedPath, curTheme, curBg);
+                        SaveAppSettings(dlg.SelectedPath, dlg.SelectedAppTheme, dlg.SelectedBgMode, dlg.SelectedUiScale,
+                            dlg.SelectedCursorSizePx, dlg.SelectedCursorScaleMode, cur.AppliedFolderPath, cur.AppliedThemeName);
                         return dlg.SelectedPath;
                     }
                 }
@@ -332,12 +656,15 @@ namespace HololiveCursorApp
             {
                 try { Directory.CreateDirectory(defaultFolder); } catch { }
             }
+            SaveAppSettings(defaultFolder, settings.AppTheme, settings.BgMode, settings.UiScale,
+                settings.CursorSizePx, settings.CursorScaleMode, settings.AppliedFolderPath, settings.AppliedThemeName);
             return defaultFolder;
         }
 
         private static string GetCursorsDataFolder()
         {
-            var (savedPath, _, _) = LoadAppSettings();
+            var settings = LoadAppSettings();
+            string savedPath = settings.FolderPath;
             if (!string.IsNullOrEmpty(savedPath))
             {
                 if (!Directory.Exists(savedPath))
@@ -366,10 +693,10 @@ namespace HololiveCursorApp
             return Path.Combine(appDir, "CursorsData");
         }
 
-        private static void SetCustomCursorsDataFolder(string newPath)
+        private void SetCustomCursorsDataFolder(string newPath)
         {
-            var (_, currentTheme, currentBg) = LoadAppSettings();
-            SaveAppSettings(newPath, currentTheme, currentBg);
+            SaveAppSettings(newPath, _currentAppTheme, _currentBgMode, _currentUiScale,
+                _cursorSizePx, _cursorScaleMode, _appliedFolderPath, _appliedThemeName);
         }
 
         private static void CopyDirectory(string sourceDir, string destinationDir)
@@ -395,9 +722,23 @@ namespace HololiveCursorApp
         private async Task ReloadThemesAsync(string? selectFolderPath = null)
         {
             string cursorsData = GetCursorsDataFolder();
-            _allThemes = await Task.Run(() => FolderScanner.ScanDirectory(cursorsData));
-            TxtThemeCount.Text = $"{_allThemes.Count} 個主題";
+            var scanned = await Task.Run(() => FolderScanner.ScanDirectory(cursorsData));
+
+            // Drop temporary entries that were later saved into the library, or whose folder disappeared
+            _temporaryThemes.RemoveAll(t =>
+                !Directory.Exists(t.FolderPath) ||
+                scanned.Any(s => s.FolderPath.Equals(t.FolderPath, StringComparison.OrdinalIgnoreCase)));
+
+            _allThemes = _temporaryThemes
+                .Concat(scanned)
+                .ToList();
+
+            int tempCount = _temporaryThemes.Count;
+            TxtThemeCount.Text = tempCount > 0
+                ? $"{scanned.Count} 個主題 · {tempCount} 未存入庫"
+                : $"{scanned.Count} 個主題";
             FilterThemes();
+            RefreshInUseBadges();
 
             if (!string.IsNullOrEmpty(selectFolderPath))
             {
@@ -410,9 +751,20 @@ namespace HololiveCursorApp
             }
         }
 
-        private void ReloadThemes(string? selectFolderPath = null)
+        private void RefreshInUseBadges()
         {
-            _ = ReloadThemesAsync(selectFolderPath);
+            foreach (var theme in _allThemes)
+            {
+                theme.IsCurrentlyInUse = !string.IsNullOrEmpty(_appliedFolderPath) &&
+                    theme.FolderPath.Equals(_appliedFolderPath, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Also update temporary list copies if any are not yet merged into _allThemes
+            foreach (var theme in _temporaryThemes)
+            {
+                theme.IsCurrentlyInUse = !string.IsNullOrEmpty(_appliedFolderPath) &&
+                    theme.FolderPath.Equals(_appliedFolderPath, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         private void FilterThemes()
@@ -426,9 +778,39 @@ namespace HololiveCursorApp
             {
                 LstThemes.ItemsSource = _allThemes
                     .Where(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                                t.Group.Contains(query, StringComparison.OrdinalIgnoreCase))
+                                t.Group.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                                t.GroupDisplay.Contains(query, StringComparison.OrdinalIgnoreCase))
                     .ToList();
             }
+        }
+
+        private void RememberTemporaryTheme(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+                return;
+
+            string cursorsData = GetCursorsDataFolder();
+            if (folderPath.StartsWith(cursorsData, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // Keep a single unsaved session entry so switching themes can still return to it
+            _temporaryThemes.RemoveAll(t => !t.FolderPath.Equals(folderPath, StringComparison.OrdinalIgnoreCase));
+            if (_temporaryThemes.Any(t => t.FolderPath.Equals(folderPath, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            var item = FolderScanner.TryCreateThemeItem(folderPath, isTemporary: true);
+            if (item != null)
+                _temporaryThemes.Insert(0, item);
+        }
+
+        private void ForgetTemporaryTheme(string folderPath)
+        {
+            _temporaryThemes.RemoveAll(t => t.FolderPath.Equals(folderPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void ReloadThemes(string? selectFolderPath = null)
+        {
+            _ = ReloadThemesAsync(selectFolderPath);
         }
 
         private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -456,43 +838,56 @@ namespace HololiveCursorApp
             // If the dragged folder is not already inside the current storage folder
             if (!folderPath.StartsWith(cursorsData, StringComparison.OrdinalIgnoreCase))
             {
-                var askResult = MessageBox.Show(
-                    $"檢測到新拖入的游標資料夾：「{folderName}」\n\n是否要將此游標主題複製存入您的游標庫中？\n\n" +
-                    $"【目前儲存庫目錄】：\n{cursorsData}\n\n" +
-                    $"• 點選「是 (Yes)」：複製存入游標庫（推薦，方便統一管理）\n" +
-                    $"• 點選「否 (No)」：僅本次直接讀取，不複製檔案\n" +
-                    $"（若想自訂資料夾位置，可隨時點擊右上角「⚙️ 設定」更改）",
-                    "匯入游標主題確認",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question);
+                var askResult = ConfirmDialog.Show(this, new ConfirmDialogOptions
+                {
+                    Title = "匯入鼠標主題確認",
+                    Headline = $"檢測到新拖入的鼠標資料夾：「{folderName}」",
+                    Message = "是否要將此鼠標主題複製存入您的鼠標庫中？",
+                    PathLabel = "目前儲存庫目錄",
+                    PathHighlight = cursorsData,
+                    BulletPoints = new[]
+                    {
+                        "點選「是」：複製存入鼠標庫，並立即套用此主題",
+                        "點選「否」：不複製檔案，仍立即套用，並在左側以「未存入庫」列出方便再回來"
+                    },
+                    FooterNote = "若想自訂資料夾位置，可隨時點擊右上角「⚙️ 設定」更改",
+                    Buttons = ConfirmDialogButtons.YesNoCancel
+                });
 
-                if (askResult == MessageBoxResult.Cancel)
+                if (askResult == ConfirmDialogResult.Cancel)
                 {
                     return;
                 }
 
-                if (askResult == MessageBoxResult.Yes)
+                if (askResult == ConfirmDialogResult.Yes)
                 {
                     targetDir = Path.Combine(cursorsData, folderName);
                     try
                     {
                         CopyDirectory(folderPath, targetDir);
+                        ForgetTemporaryTheme(folderPath);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"複製至儲存庫時發生錯誤：{ex.Message}\n將直接讀取原目錄。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        ConfirmDialog.Alert(this, "提示",
+                            $"複製至儲存庫時發生錯誤：{ex.Message}",
+                            "將直接讀取原目錄。",
+                            ConfirmDialogKind.Warning);
                         targetDir = folderPath;
+                        RememberTemporaryTheme(targetDir);
                     }
                 }
                 else
                 {
                     targetDir = folderPath;
+                    RememberTemporaryTheme(targetDir);
                 }
             }
 
             // Reload sidebar list and select the theme
             ReloadThemes(targetDir);
             LoadFolder(targetDir);
+            TryApplyCurrentTheme(silent: true);
         }
 
         public void LoadFolder(string folderPath, string? themeName = null)
@@ -507,6 +902,7 @@ namespace HololiveCursorApp
             TxtCurrentThemeTitle.Text = _currentThemeName;
             TxtCurrentFolderPath.Text = folderPath;
 
+            CursorIconHelper.ClearCache();
             var slots = CursorMatcher.MatchFolder(folderPath);
             _currentSlots.Clear();
             foreach (var s in slots)
@@ -515,7 +911,7 @@ namespace HololiveCursorApp
             }
 
             int matchedCount = _currentSlots.Count(s => s.HasFile);
-            SetStatus("💡", $"已配對 {matchedCount} / {_currentSlots.Count} 項游標。點擊「一鍵套用」即可立即生效！", Color.FromRgb(0x89, 0xB4, 0xFA));
+            SetStatus("💡", $"已配對 {matchedCount} / {_currentSlots.Count} 項鼠標。點擊「套用」即可立即生效！", Color.FromRgb(0x89, 0xB4, 0xFA));
         }
 
         private void Window_DragOver(object sender, DragEventArgs e)
@@ -581,21 +977,25 @@ namespace HololiveCursorApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"執行安裝檔失敗：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                ConfirmDialog.Alert(this, "錯誤", $"執行安裝檔失敗：{ex.Message}", kind: ConfirmDialogKind.Error);
                 return;
             }
 
             // 2. Ask user to import the applied cursor theme
-            var ask = MessageBox.Show(
-                $"【{fileName}】已啟動！\n\n" +
-                $"若您已在該安裝工具中完成套用，是否要將當前已套用的游標主題「提取並儲存」到您的游標庫中永久管理？\n\n" +
-                $"• 點選「是 (Yes)」：自動從系統註冊表讀取游標並存入游標庫\n" +
-                $"• 點選「否 (No)」：僅執行安裝程式",
-                "提取游標主題",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+            var ask = ConfirmDialog.Show(this, new ConfirmDialogOptions
+            {
+                Title = "提取鼠標主題",
+                Headline = $"【{fileName}】已啟動！",
+                Message = "若您已在該安裝工具中完成套用，是否要將當前已套用的鼠標主題「提取並儲存」到您的鼠標庫中永久管理？",
+                BulletPoints = new[]
+                {
+                    "點選「是」：自動從系統註冊表讀取鼠標並存入鼠標庫",
+                    "點選「否」：僅執行安裝程式"
+                },
+                Buttons = ConfirmDialogButtons.YesNo
+            });
 
-            if (ask == MessageBoxResult.Yes)
+            if (ask == ConfirmDialogResult.Yes)
             {
                 ImportCurrentSystemCursors(baseName);
             }
@@ -640,7 +1040,10 @@ namespace HololiveCursorApp
 
                 if (currentPaths.Count == 0)
                 {
-                    MessageBox.Show("未能從系統中檢測到已套用的游標檔案，請確認安裝檔是否已成功套用游標。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ConfirmDialog.Alert(this, "提示",
+                        "未能從系統中檢測到已套用的鼠標檔案",
+                        "請確認安裝檔是否已成功套用鼠標。",
+                        ConfirmDialogKind.Information);
                     return;
                 }
 
@@ -690,12 +1093,15 @@ namespace HololiveCursorApp
 
                 ReloadThemes(targetFolder);
                 LoadFolder(targetFolder, themeName);
-                SetStatus("✨", $"已成功將「{themeName}」游標主題存入游標庫！", Color.FromRgb(0xA6, 0xE3, 0xA1));
-                MessageBox.Show($"已成功將「{themeName}」游標提取並儲存至游標庫！\n\n您往後隨時可以在左側清單切換回此游標。", "匯入成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus("✨", $"已成功將「{themeName}」鼠標主題存入鼠標庫！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                ConfirmDialog.Alert(this, "匯入成功",
+                    $"已成功將「{themeName}」鼠標提取並儲存至鼠標庫！",
+                    "您往後隨時可以在左側清單切換回此鼠標。",
+                    ConfirmDialogKind.Success);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("提取游標失敗：" + ex.Message, "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                ConfirmDialog.Alert(this, "錯誤", "提取鼠標失敗：" + ex.Message, kind: ConfirmDialogKind.Error);
             }
         }
 
@@ -703,7 +1109,7 @@ namespace HololiveCursorApp
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog
             {
-                Title = "選擇包含游標 (.ani / .cur) 的資料夾"
+                Title = "選擇包含鼠標 (.ani / .cur) 的資料夾"
             };
 
             if (dialog.ShowDialog() == true)
@@ -722,36 +1128,100 @@ namespace HololiveCursorApp
 
         private void BtnApplyTheme_Click(object sender, RoutedEventArgs e)
         {
+            TryApplyCurrentTheme(silent: false);
+        }
+
+        private void TryApplyCurrentTheme(bool silent)
+        {
             if (_currentSlots.Count == 0 || !_currentSlots.Any(s => s.HasFile))
             {
-                SetStatus("⚠️", "請先選擇包含游標檔案的資料夾！", Color.FromRgb(0xF9, 0xE2, 0xAF));
-                MessageBox.Show("請先選擇或拖曳包含游標檔案的資料夾！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (!silent)
+                {
+                    SetStatus("⚠️", "請先選擇包含鼠標檔案的資料夾！", Color.FromRgb(0xF9, 0xE2, 0xAF));
+                    ConfirmDialog.Alert(this, "提示", "請先選擇或拖曳包含鼠標檔案的資料夾！");
+                }
                 return;
             }
 
             try
             {
-                CursorInstaller.ApplyCursors(_currentSlots, _currentThemeName);
-                SetStatus("✅", $"套用成功！已即時切換為「{_currentThemeName}」游標主題！", Color.FromRgb(0xA6, 0xE3, 0xA1));
-                MessageBox.Show($"已成功套用「{_currentThemeName}」游標！\n\n系統已即時更新鼠標圖標，不需重開機。", "套用成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                CursorInstaller.ApplyCursors(_currentSlots, _currentThemeName, _cursorSizePx, _cursorScaleMode);
+                _appliedFolderPath = _currentLoadedFolder;
+                _appliedThemeName = _currentThemeName;
+                PersistAppSettings();
+                RefreshInUseBadges();
+                _schemePromptDismissed = false;
+                SetStatus("✅", $"套用成功！已即時切換為「{_currentThemeName}」鼠標主題！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                if (!silent)
+                {
+                    ConfirmDialog.Alert(this, "套用成功",
+                        $"已成功套用「{_currentThemeName}」鼠標！",
+                        $"鼠標大小：{MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}",
+                        ConfirmDialogKind.Success);
+                }
             }
             catch (Exception ex)
             {
                 SetStatus("❌", "套用失敗：" + ex.Message, Color.FromRgb(0xF3, 0x8B, 0xA8));
-                MessageBox.Show("套用失敗：" + ex.Message, "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                ConfirmDialog.Alert(this, "錯誤", "套用失敗：" + ex.Message, kind: ConfirmDialogKind.Error);
             }
+        }
+
+        private void ThemeItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ListBoxItem listBoxItem)
+                return;
+
+            listBoxItem.IsSelected = true;
+            listBoxItem.Focus();
+
+            bool isTemporary = listBoxItem.DataContext is CharacterThemeItem { IsTemporary: true };
+            string menuKey = isTemporary ? "SessionThemeContextMenu" : "LibraryThemeContextMenu";
+            if (TryFindResource(menuKey) is ContextMenu menu)
+            {
+                listBoxItem.ContextMenu = menu;
+                menu.PlacementTarget = listBoxItem;
+                menu.DataContext = listBoxItem.DataContext;
+                menu.IsOpen = true;
+                e.Handled = true;
+            }
+        }
+
+        private CharacterThemeItem? GetThemeItemFromMenuSender(object sender)
+        {
+            if (sender is MenuItem { Parent: ContextMenu contextMenu })
+            {
+                if (contextMenu.PlacementTarget is ListBoxItem { DataContext: CharacterThemeItem item })
+                    return item;
+                if (contextMenu.DataContext is CharacterThemeItem ctxItem)
+                    return ctxItem;
+            }
+
+            return LstThemes.SelectedItem as CharacterThemeItem;
         }
 
         private void BtnRestoreDefault_Click(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show("確定要將滑鼠游標還原為 Windows 預設樣式嗎？", "還原確認", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result == MessageBoxResult.Yes)
+            var result = ConfirmDialog.Show(this, new ConfirmDialogOptions
+            {
+                Title = "還原確認",
+                Headline = "確定要將鼠標還原為預設樣式嗎？",
+                Buttons = ConfirmDialogButtons.YesNo,
+                Kind = ConfirmDialogKind.Question
+            });
+            if (result == ConfirmDialogResult.Yes)
             {
                 bool ok = CursorInstaller.RestoreDefaultCursors();
                 if (ok)
                 {
-                    SetStatus("🔄", "已成功恢復為 Windows 預設游標！", Color.FromRgb(0x89, 0xB4, 0xFA));
-                    MessageBox.Show("已成功恢復為 Windows 預設游標！", "還原成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    _appliedFolderPath = string.Empty;
+                    _appliedThemeName = string.Empty;
+                    PersistAppSettings();
+                    RefreshInUseBadges();
+                    SetStatus("🔄", "已成功還原為預設鼠標", Color.FromRgb(0x89, 0xB4, 0xFA));
+                    ConfirmDialog.Alert(this, "還原成功", "已成功還原為預設鼠標",
+                        $"鼠標大小設定仍保留為 {MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}。",
+                        ConfirmDialogKind.Success);
                 }
                 else
                 {
@@ -783,59 +1253,128 @@ namespace HololiveCursorApp
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("無法開啟 Windows 設定：" + ex.Message);
+                    ConfirmDialog.Alert(this, "錯誤", "無法開啟 Windows 設定：" + ex.Message, kind: ConfirmDialogKind.Error);
                 }
             }
         }
 
         private void MenuRenameTheme_Click(object sender, RoutedEventArgs e)
         {
-            if (LstThemes.SelectedItem is CharacterThemeItem item)
-            {
-                var dialog = new RenameDialog(item.Name)
-                {
-                    Owner = this
-                };
+            if (GetThemeItemFromMenuSender(sender) is not CharacterThemeItem item)
+                return;
 
-                if (dialog.ShowDialog() == true)
+            if (item.IsTemporary)
+            {
+                var tempDialog = new RenameDialog(item.Name) { Owner = this };
+                if (tempDialog.ShowDialog() == true)
                 {
-                    string newName = dialog.NewName;
-                    if (string.Equals(item.Name, newName, StringComparison.Ordinal))
+                    string newName = tempDialog.NewName;
+                    if (string.IsNullOrWhiteSpace(newName) || string.Equals(item.Name, newName, StringComparison.Ordinal))
                         return;
 
-                    string oldPath = item.FolderPath;
-                    string? parentDir = Path.GetDirectoryName(oldPath);
-                    if (string.IsNullOrEmpty(parentDir)) return;
-
-                    string newPath = Path.Combine(parentDir, newName);
-
-                    try
+                    item.Name = newName;
+                    if (string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (Directory.Exists(newPath) && !oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            MessageBox.Show("已存在相同名稱的資料夾，請使用其他名稱！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            return;
-                        }
-
-                        Directory.Move(oldPath, newPath);
-
-                        // Reload list and reselect the renamed folder
-                        ReloadThemes(newPath);
-                        LoadFolder(newPath, newName);
-
-                        SetStatus("✏️", $"已成功重新命名為「{newName}」！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                        _currentThemeName = newName;
+                        TxtCurrentThemeTitle.Text = newName;
                     }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"重新命名失敗：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                    FilterThemes();
+                    SetStatus("✏️", $"已將顯示名稱改為「{newName}」（原資料夾未更動）", Color.FromRgb(0xA6, 0xE3, 0xA1));
                 }
+                return;
+            }
+
+            var dialog = new RenameDialog(item.Name)
+            {
+                Owner = this
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                string newName = dialog.NewName;
+                if (string.Equals(item.Name, newName, StringComparison.Ordinal))
+                    return;
+
+                string oldPath = item.FolderPath;
+                string? parentDir = Path.GetDirectoryName(oldPath);
+                if (string.IsNullOrEmpty(parentDir)) return;
+
+                string newPath = Path.Combine(parentDir, newName);
+
+                try
+                {
+                    if (Directory.Exists(newPath) && !oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ConfirmDialog.Alert(this, "提示", "已存在相同名稱的資料夾，請使用其他名稱！", kind: ConfirmDialogKind.Warning);
+                        return;
+                    }
+
+                    Directory.Move(oldPath, newPath);
+
+                    if (string.Equals(_appliedFolderPath, oldPath, StringComparison.OrdinalIgnoreCase))
+                        _appliedFolderPath = newPath;
+
+                    ReloadThemes(newPath);
+                    LoadFolder(newPath, newName);
+
+                    SetStatus("✏️", $"已成功重新命名為「{newName}」！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                }
+                catch (Exception ex)
+                {
+                    ConfirmDialog.Alert(this, "錯誤", $"重新命名失敗：{ex.Message}", kind: ConfirmDialogKind.Error);
+                }
+            }
+        }
+
+        private void MenuSaveTemporaryTheme_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetThemeItemFromMenuSender(sender) is not CharacterThemeItem item)
+                return;
+
+            if (!item.IsTemporary)
+            {
+                ConfirmDialog.Alert(this, "提示", "此主題已在鼠標庫中，無需再存入。");
+                return;
+            }
+
+            string cursorsData = EnsureCursorsDataFolderInteractive(this);
+            string folderName = Path.GetFileName(item.FolderPath.TrimEnd('\\', '/'));
+            string targetDir = Path.Combine(cursorsData, folderName);
+
+            try
+            {
+                if (Directory.Exists(targetDir))
+                {
+                    var overwrite = ConfirmDialog.Show(this, new ConfirmDialogOptions
+                    {
+                        Title = "確認覆蓋",
+                        Headline = $"鼠標庫中已有同名資料夾「{folderName}」。",
+                        Message = "要覆蓋嗎？",
+                        Buttons = ConfirmDialogButtons.YesNo,
+                        Kind = ConfirmDialogKind.Question
+                    });
+                    if (overwrite != ConfirmDialogResult.Yes)
+                        return;
+                }
+
+                CopyDirectory(item.FolderPath, targetDir);
+                string oldPath = item.FolderPath;
+                ForgetTemporaryTheme(oldPath);
+                if (string.Equals(_appliedFolderPath, oldPath, StringComparison.OrdinalIgnoreCase))
+                    _appliedFolderPath = targetDir;
+                ReloadThemes(targetDir);
+                LoadFolder(targetDir, item.Name);
+                SetStatus("📦", $"已將「{item.Name}」存入鼠標庫！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+            }
+            catch (Exception ex)
+            {
+                ConfirmDialog.Alert(this, "錯誤", $"存入鼠標庫失敗：{ex.Message}", kind: ConfirmDialogKind.Error);
             }
         }
 
         private void MenuOpenFolder_Click(object sender, RoutedEventArgs e)
         {
-            if (LstThemes.SelectedItem is CharacterThemeItem item && Directory.Exists(item.FolderPath))
+            if (GetThemeItemFromMenuSender(sender) is CharacterThemeItem item && Directory.Exists(item.FolderPath))
             {
                 try
                 {
@@ -847,58 +1386,110 @@ namespace HololiveCursorApp
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("無法開啟資料夾：" + ex.Message);
+                    ConfirmDialog.Alert(this, "錯誤", "無法開啟資料夾：" + ex.Message, kind: ConfirmDialogKind.Error);
                 }
             }
         }
 
         private void MenuDeleteTheme_Click(object sender, RoutedEventArgs e)
         {
-            if (LstThemes.SelectedItem is CharacterThemeItem item)
+            if (GetThemeItemFromMenuSender(sender) is not CharacterThemeItem item)
+                return;
+
+            if (item.IsTemporary)
             {
-                var result = MessageBox.Show(
-                    $"確定要永久刪除主題「{item.Name}」嗎？\n\n這將會移除該游標資料夾：\n{item.FolderPath}",
-                    "刪除主題確認",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (result == MessageBoxResult.Yes)
+                var removeAsk = ConfirmDialog.Show(this, new ConfirmDialogOptions
                 {
-                    try
+                    Title = "從列表移除",
+                    Headline = $"要從列表移除「{item.Name}」嗎？",
+                    Message = "這只是未存入庫的項目，不會刪除原始資料夾。",
+                    PathLabel = "原始資料夾",
+                    PathHighlight = item.FolderPath,
+                    Buttons = ConfirmDialogButtons.YesNo,
+                    Kind = ConfirmDialogKind.Question
+                });
+
+                if (removeAsk != ConfirmDialogResult.Yes)
+                    return;
+
+                ForgetTemporaryTheme(item.FolderPath);
+                if (string.Equals(_appliedFolderPath, item.FolderPath, StringComparison.OrdinalIgnoreCase))
+                    _appliedFolderPath = string.Empty;
+                string? keepCurrent = string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : _currentLoadedFolder;
+                ReloadThemes(keepCurrent);
+
+                if (keepCurrent == null)
+                {
+                    if (_allThemes.Count > 0)
                     {
-                        if (Directory.Exists(item.FolderPath))
-                        {
-                            Directory.Delete(item.FolderPath, true);
-                        }
-
-                        // Reload list
-                        ReloadThemes();
-
-                        // If the currently displayed theme was deleted, switch to first available or reset
-                        if (string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (_allThemes.Count > 0)
-                            {
-                                LstThemes.SelectedIndex = 0;
-                            }
-                            else
-                            {
-                                _currentLoadedFolder = string.Empty;
-                                _currentThemeName = "未選擇任何主題";
-                                TxtCurrentThemeTitle.Text = _currentThemeName;
-                                TxtCurrentFolderPath.Text = "請從左側選擇或將資料夾拖曳進來";
-                                var slots = CursorMatcher.CreateDefaultSlots();
-                                _currentSlots.Clear();
-                                foreach (var s in slots) _currentSlots.Add(s);
-                            }
-                        }
-
-                        SetStatus("🗑️", $"已成功刪除「{item.Name}」！", Color.FromRgb(0xF3, 0x8B, 0xA8));
+                        LstThemes.SelectedIndex = 0;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        MessageBox.Show($"刪除失敗：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                        _currentLoadedFolder = string.Empty;
+                        _currentThemeName = "未選擇任何主題";
+                        TxtCurrentThemeTitle.Text = _currentThemeName;
+                        TxtCurrentFolderPath.Text = "請從左側選擇或將資料夾拖曳進來";
+                        var slots = CursorMatcher.CreateDefaultSlots();
+                        _currentSlots.Clear();
+                        foreach (var s in slots) _currentSlots.Add(s);
                     }
+                }
+
+                SetStatus("🗑️", $"已從列表移除「{item.Name}」", Color.FromRgb(0xF9, 0xE2, 0xAF));
+                return;
+            }
+
+            var result = ConfirmDialog.Show(this, new ConfirmDialogOptions
+            {
+                Title = "刪除主題確認",
+                Headline = $"確定要永久刪除主題「{item.Name}」嗎？",
+                Message = "這將會移除該鼠標資料夾。",
+                PathLabel = "將刪除",
+                PathHighlight = item.FolderPath,
+                Buttons = ConfirmDialogButtons.YesNo,
+                Kind = ConfirmDialogKind.Warning
+            });
+
+            if (result == ConfirmDialogResult.Yes)
+            {
+                try
+                {
+                    if (Directory.Exists(item.FolderPath))
+                    {
+                        Directory.Delete(item.FolderPath, true);
+                    }
+
+                    if (string.Equals(_appliedFolderPath, item.FolderPath, StringComparison.OrdinalIgnoreCase))
+                        _appliedFolderPath = string.Empty;
+
+                    ReloadThemes();
+
+                    if (string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (_allThemes.Count > 0)
+                        {
+                            LstThemes.SelectedIndex = 0;
+                        }
+                        else
+                        {
+                            _currentLoadedFolder = string.Empty;
+                            _currentThemeName = "未選擇任何主題";
+                            TxtCurrentThemeTitle.Text = _currentThemeName;
+                            TxtCurrentFolderPath.Text = "請從左側選擇或將資料夾拖曳進來";
+                            var slots = CursorMatcher.CreateDefaultSlots();
+                            _currentSlots.Clear();
+                            foreach (var s in slots) _currentSlots.Add(s);
+                        }
+                    }
+
+                    SetStatus("🗑️", $"已成功刪除「{item.Name}」！", Color.FromRgb(0xF3, 0x8B, 0xA8));
+                }
+                catch (Exception ex)
+                {
+                    ConfirmDialog.Alert(this, "錯誤", $"刪除失敗：{ex.Message}", kind: ConfirmDialogKind.Error);
                 }
             }
         }
@@ -906,11 +1497,18 @@ namespace HololiveCursorApp
         private void OpenSettings_Click(object sender, RoutedEventArgs e)
         {
             string currentPath = GetCursorsDataFolder();
-            var (_, currentTheme, currentBg) = LoadAppSettings();
+            var saved = LoadAppSettings();
 
-            var dialog = new SettingsDialog(currentPath, currentTheme, currentBg)
+            var dialog = new SettingsDialog(currentPath, saved.AppTheme, saved.BgMode, saved.UiScale, saved.CursorSizePx, saved.CursorScaleMode)
             {
                 Owner = this
+            };
+
+            dialog.PreviewChanged += (theme, bg, scale) =>
+            {
+                ApplyAppTheme(theme);
+                ApplyPreviewBackground(bg, theme);
+                ApplyUiScale(scale);
             };
 
             if (dialog.ShowDialog() == true)
@@ -918,28 +1516,63 @@ namespace HololiveCursorApp
                 string newPath = dialog.SelectedPath;
                 string newTheme = dialog.SelectedAppTheme;
                 string newBg = dialog.SelectedBgMode;
+                string newScale = dialog.SelectedUiScale;
+                int newSize = dialog.SelectedCursorSizePx;
+                string newMode = dialog.SelectedCursorScaleMode;
 
-                SaveAppSettings(newPath, newTheme, newBg);
+                bool sizeOrModeChanged = newSize != _cursorSizePx
+                    || !string.Equals(newMode, _cursorScaleMode, StringComparison.OrdinalIgnoreCase);
+
+                _currentAppTheme = newTheme;
+                _currentBgMode = newBg;
+                _currentUiScale = newScale;
+                _cursorSizePx = newSize;
+                _cursorScaleMode = newMode;
+
+                SaveAppSettings(newPath, newTheme, newBg, newScale, newSize, newMode, _appliedFolderPath, _appliedThemeName);
                 ApplyAppTheme(newTheme);
-                ApplyPreviewBackground(newBg);
+                ApplyPreviewBackground(newBg, newTheme);
+                ApplyUiScale(newScale);
+                SyncPointerSizeUi();
+
+                if (sizeOrModeChanged && !string.IsNullOrEmpty(_appliedFolderPath) && Directory.Exists(_appliedFolderPath))
+                    ReapplyStoredTheme(silent: true);
 
                 bool pathChanged = !string.Equals(currentPath, newPath, StringComparison.OrdinalIgnoreCase);
                 if (pathChanged)
                 {
                     ReloadThemes();
                     SetStatus("⚙️", $"設定已儲存，資料夾位置更新為：{newPath}", Color.FromRgb(0xA6, 0xE3, 0xA1));
-                    MessageBox.Show($"設定已更新！\n\n資料夾位置：\n{newPath}\n程式主題：{(newTheme == "Light" ? "淺色" : (newTheme == "Dark" ? "深色" : "跟隨系統"))}\n預覽背景：{(newBg == "Transparent" ? "透明" : (newBg == "Light" ? "淺色" : "深色"))}", "設定已儲存", MessageBoxButton.OK, MessageBoxImage.Information);
+                    string themeDisplay = newTheme == "Light" ? "淺色" : (newTheme == "Dark" ? "深色" : "跟隨系統");
+                    string bgDisplay = newBg switch
+                    {
+                        "Light" => "淺色",
+                        "Dark" => "深色",
+                        "Transparent" => "透明",
+                        _ => "跟隨主題"
+                    };
+                    ConfirmDialog.Alert(this, "設定已儲存", "設定已更新！",
+                        pathLabel: "資料夾位置",
+                        pathHighlight: newPath,
+                        message: $"介面主題：{themeDisplay}\n預覽背景：{bgDisplay}\n鼠標大小：{MousePointerSizeHelper.GetPxLabel(newSize)}",
+                        kind: ConfirmDialogKind.Success);
                 }
                 else
                 {
                     SetStatus("⚙️", "設定已儲存！", Color.FromRgb(0xA6, 0xE3, 0xA1));
                 }
             }
+            else
+            {
+                ApplyAppTheme(saved.AppTheme);
+                ApplyPreviewBackground(saved.BgMode, saved.AppTheme);
+                ApplyUiScale(saved.UiScale);
+            }
         }
 
         private void BtnCaptureCurrentSystem_Click(object sender, RoutedEventArgs e)
         {
-            ImportCurrentSystemCursors("擷取的自訂游標");
+            ImportCurrentSystemCursors("擷取的自訂鼠標");
         }
 
         private void SetStatus(string icon, string msg, Color color)
@@ -990,16 +1623,17 @@ namespace HololiveCursorApp
 
                 SetStatus("🚀", $"發現新版本 {update.LatestVersion}！可點擊右側按鈕前往下載更新。", Color.FromRgb(0xF3, 0x8B, 0xA8));
 
-                var ask = MessageBox.Show(
-                    $"🎉 發現 CursorManager 最新版本：【{update.LatestVersion}】\n\n" +
-                    $"當前運行版本：{update.CurrentVersion}\n\n" +
-                    $"【更新重點摘要】：\n{update.ReleaseNotes}\n\n" +
-                    $"是否立即前往 GitHub Releases 頁面下載最新版？",
-                    "發現新版本",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Information);
+                var ask = ConfirmDialog.Show(this, new ConfirmDialogOptions
+                {
+                    Title = "發現新版本",
+                    Headline = $"發現 CursorManager 最新版本：【{update.LatestVersion}】",
+                    Message = $"當前運行版本：{update.CurrentVersion}\n\n【更新重點摘要】：\n{update.ReleaseNotes}",
+                    FooterNote = "是否立即前往 GitHub Releases 頁面下載最新版？",
+                    Buttons = ConfirmDialogButtons.YesNo,
+                    Kind = ConfirmDialogKind.Information
+                });
 
-                if (ask == MessageBoxResult.Yes)
+                if (ask == ConfirmDialogResult.Yes)
                 {
                     UpdateChecker.OpenReleasePage(update.ReleaseUrl);
                 }
@@ -1007,7 +1641,10 @@ namespace HololiveCursorApp
             else
             {
                 SetStatus("✨", $"目前已是最新版本 ({update.CurrentVersion})！", Color.FromRgb(0xA6, 0xE3, 0xA1));
-                MessageBox.Show($"目前運行的已是最新版本 ({update.CurrentVersion})，無需更新！", "檢查更新", MessageBoxButton.OK, MessageBoxImage.Information);
+                ConfirmDialog.Alert(this, "檢查更新",
+                    $"目前運行的已是最新版本 ({update.CurrentVersion})",
+                    "無需更新！",
+                    ConfirmDialogKind.Success);
             }
         }
 

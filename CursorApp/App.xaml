@@ -1,9 +1,132 @@
-﻿<Application x:Class="HololiveCursorApp.App"
+﻿<Application x:Class="CursorManager.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:HololiveCursorApp"
+             xmlns:local="clr-namespace:CursorManager"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <!-- Checkerboard brush for transparent preview -->
+        <DrawingBrush x:Key="CheckerboardBrush" Viewport="0,0,16,16" ViewportUnits="Absolute" TileMode="Tile">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#CCCCCC">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,16,16" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#FFFFFF">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="0,0,8,8" />
+                                <RectangleGeometry Rect="8,8,8,8" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
+        <!-- Dynamic Theme Colors (Default Dark) -->
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="BottomBarBackgroundBrush" Color="#11111B"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#CDD6F4"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A6ADC8"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#6C7086"/>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="CardItemInnerBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="BorderColorBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="ButtonHoverBackgroundBrush" Color="#45475A"/>
+        <SolidColorBrush x:Key="ButtonPressedBackgroundBrush" Color="#585B70"/>
+        <SolidColorBrush x:Key="ButtonHoverForegroundBrush" Color="#CDD6F4"/>
+        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#F38BA8"/>
+        <SolidColorBrush x:Key="SecondaryButtonBorderBrush" Color="#45475A"/>
+        <SolidColorBrush x:Key="SecondaryButtonHoverBackgroundBrush" Color="#45475A"/>
+        <SolidColorBrush x:Key="SecondaryButtonHoverForegroundBrush" Color="#F5C2D0"/>
+        <SolidColorBrush x:Key="ItemHoverBackgroundBrush" Color="#252535"/>
+        <SolidColorBrush x:Key="ItemSelectedBackgroundBrush" Color="#2A2A3C"/>
+        <SolidColorBrush x:Key="ItemSelectedHoverBackgroundBrush" Color="#32324A"/>
+        <SolidColorBrush x:Key="SlotHoverBackgroundBrush" Color="#222233"/>
+        <SolidColorBrush x:Key="SlotSelectedBackgroundBrush" Color="#2A2A3C"/>
+        <SolidColorBrush x:Key="DialogCardBrush" Color="#1E1E2E"/>
+        <SolidColorBrush x:Key="DialogInputBrush" Color="#181825"/>
+
+        <!-- Dynamic Preview Slot Background Brush -->
+        <SolidColorBrush x:Key="SlotPreviewBackgroundBrush" Color="#11111B"/>
+        <SolidColorBrush x:Key="MissingSlotIconBrush" Color="#F38BA8"/>
+
+        <!-- Accent Colors -->
+        <FontFamily x:Key="UiFontFamily">Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif</FontFamily>
+        <FontFamily x:Key="LatinFontFamily">Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+        <SolidColorBrush x:Key="PrimaryAccent" Color="#89B4FA"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#A6E3A1"/>
+        <SolidColorBrush x:Key="SuccessFileTextBrush" Color="#A6E3A1"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#F9E2AF"/>
+        <SolidColorBrush x:Key="SubText" Color="#A6ADC8"/>
+
+        <!-- Smooth pointer-size slider, theme-aware -->
+        <Style x:Key="PointerSizeSlider" TargetType="Slider">
+            <Setter Property="Minimum" Value="16"/>
+            <Setter Property="Maximum" Value="96"/>
+            <Setter Property="IsSnapToTickEnabled" Value="False"/>
+            <Setter Property="IsMoveToPointEnabled" Value="True"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Focusable" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center" MinWidth="120" Height="28">
+                            <Border Height="6" CornerRadius="3" Margin="9,0"
+                                    Background="{DynamicResource BorderColorBrush}"
+                                    VerticalAlignment="Center"/>
+                            <Track x:Name="PART_Track" VerticalAlignment="Center">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="6" CornerRadius="3,0,0,3" Margin="9,0,0,0"
+                                                        Background="{DynamicResource PrimaryAccent}"
+                                                        VerticalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="18" Height="18" Focusable="False">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Grid>
+                                                    <Ellipse Width="18" Height="18"
+                                                             Fill="{DynamicResource PrimaryAccent}"
+                                                             Stroke="{DynamicResource AppBackgroundBrush}"
+                                                             StrokeThickness="2.5">
+                                                        <Ellipse.Effect>
+                                                            <DropShadowEffect BlurRadius="8" ShadowDepth="1" Opacity="0.4" Color="#000000"/>
+                                                        </Ellipse.Effect>
+                                                    </Ellipse>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>

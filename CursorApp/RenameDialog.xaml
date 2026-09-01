@@ -1,4 +1,4 @@
-<Window x:Class="HololiveCursorApp.RenameDialog"
+<Window x:Class="CursorManager.RenameDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="重新命名主題" Height="190" Width="380"
@@ -6,7 +6,7 @@
         ResizeMode="NoResize"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}"
-        FontFamily="Microsoft JhengHei UI, Segoe UI, sans-serif">
+        FontFamily="Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif">
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
