@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public static class CursorMatcher
     {
@@ -24,7 +24,28 @@ namespace HololiveCursorApp
             ["SizeNESW"] = new[] { "nesw-resize", "sizenesw", "nesw", "ne-resize", "sw-resize", "size_bdiag", "bd_double_arrow", "dgn2", "bdiag", "diag2" },
             ["SizeAll"] = new[] { "move", "sizeall", "size_all", "all-scroll", "fleur" },
             ["UpArrow"] = new[] { "uparrow", "alternate", "up_arrow", "center_ptr", "up" },
-            ["Hand"] = new[] { "hand", "link", "pointing_hand", "hand2", "openhand", "grab" }
+            // Do not use bare "hand" here — it false-matches "Handwriting" (NWPen slot).
+            ["Hand"] = new[] { "link", "pointing_hand", "hand2", "openhand", "grab" }
+        };
+
+        // Standard Windows animated cursor pack basenames (see install.inf [Strings])
+        private static readonly Dictionary<string, string> ExactBasenameToSlotKey = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Normal"] = "Arrow",
+            ["Help"] = "Help",
+            ["Working"] = "AppStarting",
+            ["Busy"] = "Wait",
+            ["Precision"] = "Crosshair",
+            ["Text"] = "IBeam",
+            ["Handwriting"] = "NWPen",
+            ["Unavailable"] = "No",
+            ["Vertical"] = "SizeNS",
+            ["Horizontal"] = "SizeWE",
+            ["Diagonal1"] = "SizeNWSE",
+            ["Diagonal2"] = "SizeNESW",
+            ["Move"] = "SizeAll",
+            ["Alternate"] = "UpArrow",
+            ["Link"] = "Hand"
         };
 
         private static readonly Dictionary<string, string[]> InfTagMap = new(StringComparer.OrdinalIgnoreCase)
@@ -35,7 +56,8 @@ namespace HololiveCursorApp
             ["Wait"] = new[] { "busy", "wait", "cur_04" },
             ["Crosshair"] = new[] { "cross", "crosshair", "precision", "cur_05" },
             ["IBeam"] = new[] { "beam", "ibeam", "text", "cur_06" },
-            ["NWPen"] = new[] { "pen", "handwriting", "nwpen", "cur_07" },
+            // Windows cursor INF convention: %hand% = handwriting (NWPen), %link% = link select (Hand)
+            ["NWPen"] = new[] { "pen", "handwriting", "nwpen", "hand", "cur_07" },
             ["No"] = new[] { "unavailiable", "unavailable", "no", "notallowed", "cur_08" },
             ["SizeNS"] = new[] { "vert", "sizens", "ns-resize", "cur_09" },
             ["SizeWE"] = new[] { "horz", "sizewe", "ew-resize", "cur_10" },
@@ -43,7 +65,7 @@ namespace HololiveCursorApp
             ["SizeNESW"] = new[] { "dgn2", "sizenesw", "nesw-resize", "cur_12" },
             ["SizeAll"] = new[] { "move", "sizeall", "cur_13" },
             ["UpArrow"] = new[] { "alternate", "uparrow", "up", "cur_14" },
-            ["Hand"] = new[] { "link", "hand", "cur_15" }
+            ["Hand"] = new[] { "link", "cur_15" }
         };
 
         private static readonly Regex TagRegex = new(@"\[(.*?)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -92,32 +114,42 @@ namespace HololiveCursorApp
             var aniCurFiles = allFiles.Where(f => f.EndsWith(".ani", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".cur", StringComparison.OrdinalIgnoreCase)).ToList();
             var files = aniCurFiles.Count > 0 ? aniCurFiles : allFiles;
 
-            // 0. Match from .inf or scheme_map.ini if present
+            // 0. Match from .inf or scheme_map.ini if present, then fill remaining slots by filename
             string schemeMapFile = Path.Combine(folderPath, "scheme_map.ini");
             if (File.Exists(schemeMapFile))
             {
                 MatchFromSchemeMapFile(schemeMapFile, slots, folderPath);
-                if (slots.Any(s => !string.IsNullOrEmpty(s.FilePath)))
-                {
-                    ApplySmartFallbacks(slots, files);
-                    LoadSlotPreviews(slots);
-                    return slots;
-                }
             }
 
             var infFiles = Directory.GetFiles(folderPath, "*.inf", SearchOption.AllDirectories);
             if (infFiles.Length > 0)
             {
                 MatchFromInfFile(infFiles[0], slots, folderPath);
-                if (slots.Any(s => !string.IsNullOrEmpty(s.FilePath)))
-                {
-                    ApplySmartFallbacks(slots, files);
-                    LoadSlotPreviews(slots);
-                    return slots;
-                }
             }
 
             var matchedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var slot in slots)
+            {
+                if (!string.IsNullOrEmpty(slot.FilePath))
+                    matchedFiles.Add(slot.FilePath);
+            }
+
+            // 0b. Exact basename matching for standard Windows cursor pack names
+            foreach (var file in files)
+            {
+                if (matchedFiles.Contains(file)) continue;
+
+                string basename = Path.GetFileNameWithoutExtension(file);
+                if (ExactBasenameToSlotKey.TryGetValue(basename, out var slotKey))
+                {
+                    var slot = slots.FirstOrDefault(s => s.KeyName == slotKey);
+                    if (slot != null && string.IsNullOrEmpty(slot.FilePath))
+                    {
+                        slot.FilePath = file;
+                        matchedFiles.Add(file);
+                    }
+                }
+            }
 
             // 1. Pass 1: Square bracket tag matching [tag]
             foreach (var file in files)
@@ -254,10 +286,10 @@ namespace HololiveCursorApp
             {
                 if (!string.IsNullOrEmpty(slot.FilePath))
                 {
-                    slot.PreviewImage = CursorIconHelper.LoadCursorImage(slot.FilePath);
+                    slot.PreviewImage = CursorIconHelper.LoadCursorImage(slot.FilePath, CursorIconHelper.SlotPreviewLoadSize);
                     if (slot.FilePath.EndsWith(".ani", StringComparison.OrdinalIgnoreCase))
                     {
-                        slot.AniSequence = CursorIconHelper.LoadAniSequence(slot.FilePath);
+                        slot.AniSequence = CursorIconHelper.LoadAniSequence(slot.FilePath, CursorIconHelper.SlotPreviewLoadSize);
                         if (slot.AniSequence != null && slot.AniSequence.Frames.Count > 0)
                         {
                             slot.PreviewImage = slot.AniSequence.Frames[0];
@@ -278,13 +310,16 @@ namespace HololiveCursorApp
                 foreach (var rawLine in lines)
                 {
                     var line = rawLine.Trim();
-                    if (line.StartsWith(";") || string.IsNullOrEmpty(line)) continue;
+                    if (line.StartsWith(";") || line.StartsWith("[") || string.IsNullOrEmpty(line)) continue;
+                    if (line.StartsWith("HKCU", StringComparison.OrdinalIgnoreCase) ||
+                        line.StartsWith("HKLM", StringComparison.OrdinalIgnoreCase))
+                        continue;
 
                     var parts = line.Split('=', 2);
                     if (parts.Length == 2)
                     {
                         string key = parts[0].Trim().Trim('%', ' ');
-                        string val = parts[1].Trim().Trim('"', ' ', '%');
+                        string val = parts[1].Trim().Trim('"', ' ');
                         dict[key] = val;
                     }
                 }
@@ -293,21 +328,52 @@ namespace HololiveCursorApp
                 foreach (var kvp in dict)
                 {
                     string v = kvp.Value;
-                    if (dict.TryGetValue(v, out string? realVal))
+                    if (dict.TryGetValue(v.Trim('%'), out string? realVal))
                     {
                         v = realVal;
                     }
                     resolved[kvp.Key] = v;
                 }
 
+                // Direct AddReg lines: HKCU,"Control Panel\Cursors",NWPen,...,"%hand%"
+                foreach (var rawLine in lines)
+                {
+                    var line = rawLine.Trim();
+                    if (!line.StartsWith("HKCU", StringComparison.OrdinalIgnoreCase) &&
+                        !line.StartsWith("HKLM", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (line.Contains(@"Control Panel\Cursors\Schemes", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (!line.Contains(@"Control Panel\Cursors", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    var fields = SplitInfFields(line);
+                    if (fields.Count < 5) continue;
+
+                    string valueName = fields[2];
+                    if (string.IsNullOrEmpty(valueName)) continue;
+
+                    var slot = slots.FirstOrDefault(s => s.KeyName.Equals(valueName, StringComparison.OrdinalIgnoreCase));
+                    if (slot == null || !string.IsNullOrEmpty(slot.FilePath)) continue;
+
+                    string? fileName = ResolveInfFileName(fields[4], resolved, dict);
+                    if (string.IsNullOrEmpty(fileName)) continue;
+
+                    string target = Path.Combine(infDir, fileName);
+                    if (File.Exists(target))
+                        slot.FilePath = target;
+                }
+
                 foreach (var slot in slots)
                 {
+                    if (!string.IsNullOrEmpty(slot.FilePath)) continue;
                     if (!InfTagMap.TryGetValue(slot.KeyName, out var keys)) continue;
 
                     foreach (var k in keys)
                     {
                         if (resolved.TryGetValue(k, out var fileName) || dict.TryGetValue(k, out fileName))
                         {
+                            fileName = Path.GetFileName(fileName.Replace('/', '\\'));
                             string target = Path.Combine(infDir, fileName);
                             if (File.Exists(target))
                             {
@@ -319,6 +385,54 @@ namespace HololiveCursorApp
                 }
             }
             catch { }
+        }
+
+        private static List<string> SplitInfFields(string line)
+        {
+            var result = new List<string>();
+            var current = new System.Text.StringBuilder();
+            bool inQuotes = false;
+            foreach (char c in line)
+            {
+                if (c == '"')
+                {
+                    inQuotes = !inQuotes;
+                    continue;
+                }
+                if (c == ',' && !inQuotes)
+                {
+                    result.Add(current.ToString().Trim());
+                    current.Clear();
+                }
+                else
+                {
+                    current.Append(c);
+                }
+            }
+            result.Add(current.ToString().Trim());
+            return result;
+        }
+
+        private static string? ResolveInfFileName(string value, Dictionary<string, string> resolved, Dictionary<string, string> dict)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            string result = value.Trim().Trim('"');
+            foreach (var map in new[] { resolved, dict })
+            {
+                foreach (var kvp in map)
+                    result = result.Replace($"%{kvp.Key}%", kvp.Value, StringComparison.OrdinalIgnoreCase);
+            }
+
+            string name = Path.GetFileName(result.Replace('/', '\\'));
+            if (name.StartsWith('%') && name.EndsWith('%') && name.Length > 2)
+            {
+                string token = name.Trim('%');
+                if (resolved.TryGetValue(token, out var mapped) || dict.TryGetValue(token, out mapped))
+                    name = Path.GetFileName(mapped.Replace('/', '\\'));
+            }
+
+            return string.IsNullOrEmpty(name) || name.Contains('%') ? null : name;
         }
 
         private static void MatchFromSchemeMapFile(string iniPath, List<CursorSlot> slots, string baseFolder)
@@ -356,7 +470,7 @@ namespace HololiveCursorApp
         {
             foreach (var kvp in KeywordMap)
             {
-                if (kvp.Value.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase)))
+                if (kvp.Value.Any(k => KeywordMatchesFileName(k, text)))
                 {
                     return slots.FirstOrDefault(s => s.KeyName == kvp.Key);
                 }
@@ -368,9 +482,22 @@ namespace HololiveCursorApp
         {
             if (KeywordMap.TryGetValue(keyName, out var keywords))
             {
-                return keywords.Any(k => fileName.Contains(k, StringComparison.OrdinalIgnoreCase) || fileName.Equals(k, StringComparison.OrdinalIgnoreCase));
+                return keywords.Any(k => KeywordMatchesFileName(k, fileName));
             }
             return false;
+        }
+
+        private static bool KeywordMatchesFileName(string keyword, string fileName)
+        {
+            if (fileName.Equals(keyword, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // "hand" must not steal Handwriting.ani (NWPen)
+            if (keyword.Equals("hand", StringComparison.OrdinalIgnoreCase) &&
+                fileName.Contains("handwriting", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return fileName.Contains(keyword, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -1,68 +1,22 @@
-<Window x:Class="HololiveCursorApp.MainWindow"
+<Window x:Class="CursorManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:HololiveCursorApp"
+        xmlns:local="clr-namespace:CursorManager"
         mc:Ignorable="d"
-        Title="鼠標游標一鍵套用工具" 
-        Height="800" Width="1240"
-        MinHeight="680" MinWidth="1100"
+        Title="鼠標一鍵套用工具" 
+        Height="896" Width="1390"
+        MinHeight="762" MinWidth="1232"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}"
-        FontFamily="Microsoft JhengHei UI, Segoe UI, sans-serif"
+        FontFamily="Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif"
         AllowDrop="True"
         DragOver="Window_DragOver"
         Drop="Window_Drop">
 
     <Window.Resources>
-        <!-- Checkerboard brush for transparent preview -->
-        <DrawingBrush x:Key="CheckerboardBrush" Viewport="0,0,16,16" ViewportUnits="Absolute" TileMode="Tile">
-            <DrawingBrush.Drawing>
-                <DrawingGroup>
-                    <GeometryDrawing Brush="#CCCCCC">
-                        <GeometryDrawing.Geometry>
-                            <RectangleGeometry Rect="0,0,16,16" />
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                    <GeometryDrawing Brush="#FFFFFF">
-                        <GeometryDrawing.Geometry>
-                            <GeometryGroup>
-                                <RectangleGeometry Rect="0,0,8,8" />
-                                <RectangleGeometry Rect="8,8,8,8" />
-                            </GeometryGroup>
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                </DrawingGroup>
-            </DrawingBrush.Drawing>
-        </DrawingBrush>
-
-        <!-- Dynamic Theme Colors -->
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#181825"/>
-        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#181825"/>
-        <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="BottomBarBackgroundBrush" Color="#11111B"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#CDD6F4"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A6ADC8"/>
-        <SolidColorBrush x:Key="TextMutedBrush" Color="#6C7086"/>
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="CardItemInnerBackgroundBrush" Color="#181825"/>
-        <SolidColorBrush x:Key="BorderColorBrush" Color="#313244"/>
-        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#313244"/>
-        <SolidColorBrush x:Key="DialogCardBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="DialogInputBrush" Color="#181825"/>
-
-        <!-- Dynamic Preview Slot Background Brush -->
-        <SolidColorBrush x:Key="SlotPreviewBackgroundBrush" Color="#11111B"/>
-
-        <!-- Accent Colors -->
-        <SolidColorBrush x:Key="PrimaryAccent" Color="#89B4FA"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#A6E3A1"/>
-        <SolidColorBrush x:Key="WarningColor" Color="#F9E2AF"/>
-        <SolidColorBrush x:Key="SubText" Color="#A6ADC8"/>
-
         <Style TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -83,11 +37,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#45475A"/>
+                                <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonHoverForegroundBrush}"/>
                                 <Setter Property="BorderBrush" Value="#89B4FA"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#585B70"/>
+                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonHoverForegroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -124,18 +80,44 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SecondaryBtn" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="#313244"/>
-            <Setter Property="Foreground" Value="#F38BA8"/>
-            <Setter Property="BorderBrush" Value="#45475A"/>
+        <Style x:Key="SecondaryBtn" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SecondaryButtonBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SecondaryButtonHoverBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonHoverForegroundBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ContextMenu Dark Theme -->
         <Style TargetType="ContextMenu">
-            <Setter Property="Background" Value="#181825"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="BorderBrush" Value="#313244"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="4"/>
             <Setter Property="Template">
@@ -155,7 +137,7 @@
 
         <Style TargetType="MenuItem">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -169,7 +151,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#313244"/>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource BorderColorBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -178,13 +160,29 @@
         </Style>
 
         <Style TargetType="Separator">
-            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="Background" Value="{DynamicResource BorderColorBrush}"/>
             <Setter Property="Height" Value="1"/>
             <Setter Property="Margin" Value="4,4"/>
         </Style>
+
+        <!-- Must live in Window.Resources (not inside a Style Setter): Click handlers nested in
+             Setter.Value break IComponentConnector connectionId wiring at runtime. -->
+        <ContextMenu x:Key="LibraryThemeContextMenu" x:Shared="false">
+            <MenuItem Header="✏️ 重新命名此主題" Click="MenuRenameTheme_Click"/>
+            <MenuItem Header="📂 開啟所在資料夾" Click="MenuOpenFolder_Click"/>
+            <Separator/>
+            <MenuItem Header="🗑️ 刪除此主題" Click="MenuDeleteTheme_Click" Foreground="#F38BA8"/>
+        </ContextMenu>
+        <ContextMenu x:Key="SessionThemeContextMenu" x:Shared="false">
+            <MenuItem Header="✏️ 重新命名顯示名稱" Click="MenuRenameTheme_Click"/>
+            <MenuItem Header="📂 開啟所在資料夾" Click="MenuOpenFolder_Click"/>
+            <MenuItem Header="📦 存入鼠標庫" Click="MenuSaveTemporaryTheme_Click"/>
+            <Separator/>
+            <MenuItem Header="❎ 從列表移除" Click="MenuDeleteTheme_Click" Foreground="#F38BA8"/>
+        </ContextMenu>
     </Window.Resources>
 
-    <Grid>
+    <Grid x:Name="RootScaleGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Top Bar & Drag Area -->
             <RowDefinition Height="*"/>    <!-- Main Content Area -->
@@ -204,9 +202,9 @@
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="✨" FontSize="18" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="鼠標游標一鍵套用器" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccent}" VerticalAlignment="Center"/>
+                        <TextBlock Text="鼠標一鍵套用器" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccent}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="拖曳資料夾至此視窗即可自動配對 15 項游標並立即生效" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="23,2,0,0"/>
+                    <TextBlock Text="拖曳資料夾至此視窗即可自動配對並立即生效" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="23,2,0,0"/>
                 </StackPanel>
 
                 <!-- Big Drag & Drop Dropzone Button -->
@@ -225,17 +223,16 @@
                         Drop="Window_Drop">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock Text="📂" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="把任何游標資料夾「拖曳到這裡」自動分配" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="（或點此手動選擇）" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBlock Text="拖曳資料夾或點此手動選擇" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Quick Action: Open Mouse Settings & Storage Settings -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="📥 擷取游標" Click="BtnCaptureCurrentSystem_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
-                            ToolTip="將目前 Windows 正在使用的滑鼠游標直接存為新主題"/>
+                    <Button Content="📥 擷取鼠標" Click="BtnCaptureCurrentSystem_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
+                            ToolTip="將目前正在使用的鼠標直接存為新主題"/>
                     <Button Content="⚙️ 設定" Click="OpenSettings_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
-                            ToolTip="資料夾位置與外觀設定"/>
+                            ToolTip="資料夾位置、鼠標大小與外觀設定"/>
                     <Button Content="🖱️ 系統設定" Click="OpenWindowsMouseSettings_Click" Padding="8,5" FontSize="11.5"/>
                 </StackPanel>
             </Grid>
@@ -244,7 +241,7 @@
         <!-- MAIN SPLIT CONTENT -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="310" MinWidth="220" MaxWidth="450"/> <!-- Left Character List -->
+                <ColumnDefinition Width="348" MinWidth="246" MaxWidth="504"/> <!-- Left Character List -->
                 <ColumnDefinition Width="2"/>                                 <!-- Splitter -->
                 <ColumnDefinition Width="*"/>                                  <!-- Right Slots Grid -->
             </Grid.ColumnDefinitions>
@@ -260,7 +257,7 @@
                 <!-- Header -->
                 <Border Grid.Row="0" Padding="14,10,14,6">
                     <Grid>
-                        <TextBlock Text="內建游標庫" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7" VerticalAlignment="Center"/>
+                        <TextBlock Text="內建鼠標庫" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7" VerticalAlignment="Center"/>
                         <TextBlock Name="TxtThemeCount" Text="0 個主題" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
@@ -294,39 +291,38 @@
                          Padding="6,0,6,6">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="2,3">
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="✏️ 重新命名此主題" Click="MenuRenameTheme_Click"/>
-                                        <MenuItem Header="📂 開啟所在資料夾" Click="MenuOpenFolder_Click"/>
-                                        <Separator/>
-                                        <MenuItem Header="🗑️ 刪除此主題" Click="MenuDeleteTheme_Click" Foreground="#F38BA8"/>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="34"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                                    <!-- Cursor Icon Preview -->
-                                    <Border Grid.Column="0" Width="30" Height="30" Background="{DynamicResource CardItemInnerBackgroundBrush}" CornerRadius="6" Margin="0,0,8,0">
-                                        <Image Source="{Binding PreviewImage}" Width="24" Height="24" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    </Border>
+                                <!-- Cursor Icon Preview -->
+                                <Border Grid.Column="0" Width="40" Height="40" Background="{DynamicResource CardItemInnerBackgroundBrush}" CornerRadius="6" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
 
-                                    <!-- Info -->
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Group}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,1,0,0"/>
+                                <!-- Info -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"
+                                                   FontFamily="{StaticResource UiFontFamily}" VerticalAlignment="Center"/>
+                                        <Border Margin="6,0,0,0" Padding="5,1" CornerRadius="4" VerticalAlignment="Center"
+                                                Background="#A6E3A133" BorderBrush="#A6E3A188" BorderThickness="1"
+                                                Visibility="{Binding IsCurrentlyInUse, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
+                                            <TextBlock Text="現在使用" FontSize="9" FontWeight="SemiBold" Foreground="#A6E3A1"/>
+                                        </Border>
                                     </StackPanel>
+                                    <TextBlock Text="{Binding GroupDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
 
-                                    <!-- File count badge -->
-                                    <Border Grid.Column="2" Background="{DynamicResource BorderColorBrush}" CornerRadius="10" Padding="6,2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding FileCount, StringFormat='{}{0} 圖標'}" FontSize="10" Foreground="{DynamicResource PrimaryAccent}"/>
-                                    </Border>
-                                </Grid>
-                            </Border>
+                                <!-- File count badge -->
+                                <Border Grid.Column="2" Background="{DynamicResource BorderColorBrush}" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" MinWidth="52">
+                                    <TextBlock Text="{Binding FileCount, StringFormat='{}{0} 圖標'}" FontSize="10" Foreground="{DynamicResource PrimaryAccent}" HorizontalAlignment="Center"/>
+                                </Border>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                     <ListBox.ItemContainerStyle>
@@ -334,10 +330,39 @@
                             <Setter Property="Padding" Value="0"/>
                             <Setter Property="Margin" Value="0"/>
                             <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <EventSetter Event="PreviewMouseRightButtonDown" Handler="ThemeItem_PreviewMouseRightButtonDown"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <ContentPresenter />
+                                        <Border x:Name="ThemeItemBorder"
+                                                Background="{DynamicResource CardBackgroundBrush}"
+                                                BorderBrush="{DynamicResource BorderColorBrush}"
+                                                BorderThickness="2"
+                                                CornerRadius="8"
+                                                Padding="10,8"
+                                                Margin="2,3"
+                                                Cursor="Hand">
+                                            <ContentPresenter HorizontalAlignment="Stretch"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemHoverBackgroundBrush}"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemSelectedBackgroundBrush}"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                            </Trigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsSelected" Value="True"/>
+                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemSelectedHoverBackgroundBrush}"/>
+                                            </MultiTrigger>
+                                        </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
@@ -364,99 +389,166 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="當前準備套用：" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SuccessColor}" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾拖曳進來" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SuccessColor}" VerticalAlignment="Center"/>
+                            <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾拖曳進來" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"
+                                       FontFamily="{StaticResource LatinFontFamily}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Content="🔄 重新配對本目錄" Click="BtnRematch_Click" Padding="10,5" FontSize="11" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="🔄 重新配對本目錄" Click="BtnRematch_Click" Padding="10,5" FontSize="11" VerticalAlignment="Center"
+                                ToolTip="重新掃描目前資料夾內的 .ani / .cur 檔案，並重新自動配對 15 項鼠標（檔名有變更或手動替換圖檔時使用）"/>
                     </Grid>
                 </Border>
 
                 <!-- 15 Cursor Slots Grid -->
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14">
-                    <ItemsControl Name="ItemsCursorSlots">
-                        <ItemsControl.ItemsPanel>
+                    <ListBox Name="ItemsCursorSlots" Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             FocusVisualStyle="{x:Null}">
+                        <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal"/>
                             </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="235" Height="86" Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{Binding HasFile, Converter={x:Static local:HasFileToBorderBrushConverter.Instance}}" BorderThickness="1.5" CornerRadius="8" Margin="5" Padding="8">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="46"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="48"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
 
-                                        <!-- Preview Box -->
-                                        <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Width="40" Height="40" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <Grid>
-                                                <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                                <!-- If no preview icon -->
-                                                <TextBlock Text="❌" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                           Visibility="{Binding HasFile, Converter={x:Static local:InverseBooleanToVisibilityConverter.Instance}}"/>
-                                            </Grid>
-                                        </Border>
+                                    <!-- Preview Box -->
+                                    <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Width="44" Height="44" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <Grid>
+                                            <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="None" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <TextBlock Text="✕" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource MissingSlotIconBrush}"
+                                                       Visibility="{Binding HasFile, Converter={x:Static local:InverseBooleanToVisibilityConverter.Instance}}"/>
+                                        </Grid>
+                                    </Border>
 
-                                        <!-- Slot Info -->
-                                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding FileName}" FontSize="10" Foreground="{Binding HasFile, Converter={x:Static local:HasFileToTextBrushConverter.Instance}}" 
-                                                       TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding FilePath}"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
+                                    <!-- Slot Info -->
+                                    <StackPanel Grid.Column="1" Margin="10,0,4,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding FileName}" FontSize="11" Foreground="{Binding HasFile, Converter={x:Static local:HasFileToTextBrushConverter.Instance}}"
+                                                   FontFamily="{StaticResource LatinFontFamily}"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding FilePath}"/>
+                                    </StackPanel>
+                                </Grid>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="SlotCardBorder"
+                                                    Width="248" Height="88"
+                                                    Background="{DynamicResource CardItemInnerBackgroundBrush}"
+                                                    BorderBrush="{Binding HasFile, Converter={x:Static local:HasFileToBorderBrushConverter.Instance}}"
+                                                    BorderThickness="2"
+                                                    CornerRadius="8"
+                                                    Margin="5"
+                                                    Padding="10,8"
+                                                    Cursor="Hand">
+                                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="SlotCardBorder" Property="Background" Value="{DynamicResource SlotHoverBackgroundBrush}"/>
+                                                    <Setter TargetName="SlotCardBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="SlotCardBorder" Property="Background" Value="{DynamicResource SlotSelectedBackgroundBrush}"/>
+                                                    <Setter TargetName="SlotCardBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True"/>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="SlotCardBorder" Property="Background" Value="{DynamicResource ItemSelectedHoverBackgroundBrush}"/>
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
                 </ScrollViewer>
             </Grid>
         </Grid>
 
         <!-- BOTTOM STATUS & ACTION BAR -->
-        <Border Grid.Row="2" Background="{DynamicResource BottomBarBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,1,0,0" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource BottomBarBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,1,0,0" Padding="16,10">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- Status Feedback -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Name="TxtStatusIcon" Text="💡" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBlock Name="TxtStatusMessage" Text="已就緒。可點選左側角色或拖曳資料夾，然後點擊「一鍵套用」。" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                </StackPanel>
+                <!-- Mouse size -->
+                <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="220"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="鼠標大小" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,12,0"/>
+                    <Slider Grid.Column="1" Name="SliderPointerSize" Style="{StaticResource PointerSizeSlider}"
+                            ValueChanged="SliderPointerSize_ValueChanged"/>
+                    <TextBlock Grid.Column="2" Name="TxtPointerSizeLabel" Text="32 PX" FontSize="13" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="12,0,0,0"
+                               Foreground="{DynamicResource PrimaryAccent}" MinWidth="56"
+                               FontFamily="{DynamicResource LatinFontFamily}"/>
+                </Grid>
 
-                <!-- Version Tag & Update Button in bottom center -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
-                    <Border Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
-                        <TextBlock Name="TxtVersion" Text="v2.7.0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    </Border>
-                    
-                    <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click" 
-                            FontSize="11" Padding="8,4" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                    <!-- New Version Notification Badge Button (Visible only when update is detected) -->
-                    <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊下載" Click="BtnNewUpdateFound_Click" 
-                            Visibility="Collapsed" Margin="6,0,0,0" Padding="10,4" FontSize="11" FontWeight="Bold"
-                            Background="#F38BA8" Foreground="#11111B" BorderThickness="0" Cursor="Hand">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="10"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Name="TxtStatusIcon" Text="💡" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Name="TxtStatusMessage" Text="已就緒。點擊「套用」即可使用" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
 
-                <!-- Actions -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="🔄 恢復 Windows 預設游標" Style="{StaticResource SecondaryBtn}" Click="BtnRestoreDefault_Click" Margin="0,0,12,0" Padding="14,8"/>
-                    <Button Name="BtnApplyTheme" Content="✨ 一鍵套用此主題" Style="{StaticResource PrimaryBtn}" Click="BtnApplyTheme_Click" Padding="24,9"/>
-                </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                        <Border Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
+                            <TextBlock Name="TxtVersion" Text="v2.8.0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </Border>
+
+                        <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click"
+                                FontSize="11" Padding="8,4" Margin="6,0,0,0" VerticalAlignment="Center"/>
+
+                        <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊下載" Click="BtnNewUpdateFound_Click"
+                                Visibility="Collapsed" Margin="6,0,0,0" Padding="10,4" FontSize="11" FontWeight="Bold"
+                                Background="#F38BA8" Foreground="#11111B" BorderThickness="0" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="10"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Name="BtnReapplyLast" Content="🔁 套用上次" Style="{StaticResource SecondaryBtn}" Click="BtnReapplyLast_Click"
+                                Margin="0,0,8,0" Padding="12,8" ToolTip="重新套用上次主題"/>
+                        <Button Content="🔄 恢復預設" Style="{StaticResource SecondaryBtn}" Click="BtnRestoreDefault_Click" Margin="0,0,8,0" Padding="14,8"/>
+                        <Button Name="BtnApplyTheme" Content="✨ 套用" Style="{StaticResource PrimaryBtn}" Click="BtnApplyTheme_Click" Padding="24,9"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

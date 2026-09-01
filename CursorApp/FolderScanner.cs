@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public static class FolderScanner
     {
@@ -33,39 +33,9 @@ namespace HololiveCursorApp
 
                 Parallel.ForEach(dirList, dir =>
                 {
-                    try
-                    {
-                        var files = Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly);
-                        var aniFiles = files.Where(f => SupportedExtensions.Contains(Path.GetExtension(f))).ToList();
-
-                        if (aniFiles.Count > 0)
-                        {
-                            string dirName = Path.GetFileName(dir.TrimEnd('\\', '/'));
-                            if (string.IsNullOrEmpty(dirName)) dirName = "自訂游標";
-                            string parentDirName = Path.GetFileName(Path.GetDirectoryName(dir.TrimEnd('\\', '/')) ?? "");
-
-                            string group = ResolveGroup(dir, parentDirName);
-                            string cleanName = dirName.Replace("Mouse cursor", "", StringComparison.OrdinalIgnoreCase).Trim();
-                            if (string.IsNullOrWhiteSpace(cleanName)) cleanName = dirName;
-
-                            string previewFile = aniFiles.FirstOrDefault(f => 
-                                f.Contains("01") || f.Contains("nomal", StringComparison.OrdinalIgnoreCase) || 
-                                f.Contains("normal", StringComparison.OrdinalIgnoreCase) || 
-                                f.Contains("arrow", StringComparison.OrdinalIgnoreCase) || 
-                                f.Contains("default", StringComparison.OrdinalIgnoreCase)) ?? aniFiles.First();
-
-                            bag.Add(new CharacterThemeItem
-                            {
-                                Name = cleanName,
-                                Group = group,
-                                FolderPath = dir,
-                                FileCount = aniFiles.Count,
-                                PreviewFilePath = previewFile,
-                                PreviewImage = CursorIconHelper.LoadCursorImage(previewFile, 24)
-                            });
-                        }
-                    }
-                    catch { }
+                    var item = TryCreateThemeItem(dir, isTemporary: false);
+                    if (item != null)
+                        bag.Add(item);
                 });
 
                 results = bag.OrderBy(r => r.Group).ThenBy(r => r.Name).ToList();
@@ -73,6 +43,49 @@ namespace HololiveCursorApp
             catch { }
 
             return results;
+        }
+
+        public static CharacterThemeItem? TryCreateThemeItem(string dir, bool isTemporary)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return null;
+
+            try
+            {
+                var files = Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly);
+                var aniFiles = files.Where(f => SupportedExtensions.Contains(Path.GetExtension(f))).ToList();
+                if (aniFiles.Count == 0)
+                    return null;
+
+                string dirName = Path.GetFileName(dir.TrimEnd('\\', '/'));
+                if (string.IsNullOrEmpty(dirName)) dirName = "自訂鼠標";
+                string parentDirName = Path.GetFileName(Path.GetDirectoryName(dir.TrimEnd('\\', '/')) ?? "");
+
+                string group = isTemporary ? "未存入庫" : ResolveGroup(dir, parentDirName);
+                string cleanName = dirName.Replace("Mouse cursor", "", StringComparison.OrdinalIgnoreCase).Trim();
+                if (string.IsNullOrWhiteSpace(cleanName)) cleanName = dirName;
+
+                string previewFile = aniFiles.FirstOrDefault(f =>
+                    f.Contains("01") || f.Contains("nomal", StringComparison.OrdinalIgnoreCase) ||
+                    f.Contains("normal", StringComparison.OrdinalIgnoreCase) ||
+                    f.Contains("arrow", StringComparison.OrdinalIgnoreCase) ||
+                    f.Contains("default", StringComparison.OrdinalIgnoreCase)) ?? aniFiles.First();
+
+                return new CharacterThemeItem
+                {
+                    Name = cleanName,
+                    Group = group,
+                    FolderPath = dir,
+                    FileCount = aniFiles.Count,
+                    PreviewFilePath = previewFile,
+                    PreviewImage = CursorIconHelper.LoadCursorImage(previewFile, CursorIconHelper.SidebarPreviewSize),
+                    IsTemporary = isTemporary
+                };
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static string ResolveGroup(string dir, string parentDirName)
@@ -92,7 +105,7 @@ namespace HololiveCursorApp
                 return parentDirName;
             }
 
-            return "自訂游標";
+            return "自訂鼠標";
         }
     }
 }

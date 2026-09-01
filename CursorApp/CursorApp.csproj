@@ -6,8 +6,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <AssemblyName>CursorTool</AssemblyName>
-    <RootNamespace>CursorApp</RootNamespace>
+    <AssemblyName>CursorManager</AssemblyName>
+    <RootNamespace>CursorManager</RootNamespace>
+    <Product>CursorManager</Product>
+    <AssemblyTitle>CursorManager</AssemblyTitle>
+    <Description>Windows 鼠標一鍵套用管理工具</Description>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishSingleFile>true</PublishSingleFile>
@@ -15,9 +18,9 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishTrimmed>false</PublishTrimmed>
     <PublishReadyToRun>true</PublishReadyToRun>
-    <Version>2.7.0</Version>
-    <FileVersion>2.7.0.0</FileVersion>
-    <AssemblyVersion>2.7.0.0</AssemblyVersion>
+    <Version>2.8.0</Version>
+    <FileVersion>2.8.0.0</FileVersion>
+    <AssemblyVersion>2.8.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>

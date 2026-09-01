@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public class UpdateInfo
     {
@@ -85,7 +85,8 @@ namespace HololiveCursorApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("無法開啟瀏覽器：" + ex.Message, "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ConfirmDialog.Alert(Application.Current?.MainWindow, "提示",
+                    "無法開啟瀏覽器：" + ex.Message, kind: ConfirmDialogKind.Warning);
             }
         }
     }

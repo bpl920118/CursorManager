@@ -4,12 +4,12 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public partial class App : Application
     {
         private static Mutex? _singleInstanceMutex;
-        private const string MutexName = "HololiveCursorTool_SingleInstance_Mutex_2026";
+        private const string MutexName = "CursorManager_SingleInstance_Mutex_2026";
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -32,7 +32,7 @@ namespace HololiveCursorApp
                 // Another instance is already running; bring it to front and exit
                 try
                 {
-                    IntPtr existingHwnd = FindWindow(null, "鼠標游標一鍵套用器");
+                    IntPtr existingHwnd = FindWindow(null, "鼠標一鍵套用器");
                     if (existingHwnd != IntPtr.Zero)
                     {
                         ShowWindowAsync(existingHwnd, SW_RESTORE);

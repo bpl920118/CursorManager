@@ -9,7 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public class AniFrameSequence
     {
@@ -41,7 +41,11 @@ namespace HololiveCursorApp
             AniCache.Clear();
         }
 
-        public static ImageSource? LoadCursorImage(string filePath, int size = 32)
+        // Preview render sizes (native load, 1:1 or 2x integer display only)
+        public const int SidebarPreviewSize = 32;
+        public const int SlotPreviewLoadSize = 32;
+
+        public static ImageSource? LoadCursorImage(string filePath, int size = SlotPreviewLoadSize)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                 return null;
@@ -50,7 +54,7 @@ namespace HololiveCursorApp
             return IconCache.GetOrAdd(cacheKey, _ => LoadCursorImageInternal(filePath, size));
         }
 
-        public static AniFrameSequence? LoadAniSequence(string filePath, int size = 32)
+        public static AniFrameSequence? LoadAniSequence(string filePath, int size = SlotPreviewLoadSize)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                 return null;
@@ -88,11 +92,11 @@ namespace HololiveCursorApp
 
             try
             {
-                IntPtr hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, size, size, LR_LOADFROMFILE);
+                // Prefer native resolution so WPF can upscale with NearestNeighbor without blur.
+                IntPtr hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
                 if (hCursor == IntPtr.Zero)
                 {
-                    // Fallback to default size
-                    hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+                    hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, size, size, LR_LOADFROMFILE);
                 }
 
                 if (hCursor != IntPtr.Zero)
@@ -207,7 +211,7 @@ namespace HololiveCursorApp
                 }
 
                 var seq = new AniFrameSequence();
-                string tempDir = Path.Combine(Path.GetTempPath(), "CursorAppAniPreview");
+                string tempDir = Path.Combine(Path.GetTempPath(), "CursorManagerAniPreview");
                 Directory.CreateDirectory(tempDir);
 
                 for (int i = 0; i < iconBlocks.Count; i++)

@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Windows.Media;
 
-namespace HololiveCursorApp
+namespace CursorManager
 {
     public class CursorSlot : INotifyPropertyChanged
     {
@@ -85,6 +85,30 @@ namespace HololiveCursorApp
         public int FileCount { get; set; }
         public string PreviewFilePath { get; set; } = string.Empty;
         public ImageSource? PreviewImage { get; set; }
+
+        /// <summary>
+        /// External folder not copied into the cursor library (session-only list entry).
+        /// </summary>
+        public bool IsTemporary { get; set; }
+
+        private bool _isCurrentlyInUse;
+        /// <summary>
+        /// True when this theme is the one currently applied to Windows.
+        /// </summary>
+        public bool IsCurrentlyInUse
+        {
+            get => _isCurrentlyInUse;
+            set
+            {
+                if (_isCurrentlyInUse != value)
+                {
+                    _isCurrentlyInUse = value;
+                    OnPropertyChanged(nameof(IsCurrentlyInUse));
+                }
+            }
+        }
+
+        public string GroupDisplay => IsTemporary ? "未存入庫" : Group;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
-title 鼠標工具發布編譯器
+title CursorManager 發布編譯器
 
 echo ========================================================
 echo  正在終止可能佔用的舊進程...
 echo ========================================================
-taskkill /f /im 鼠標工具.exe >nul 2>&1
+taskkill /f /im CursorManager.exe >nul 2>&1
 taskkill /f /im CursorTool.exe >nul 2>&1
 taskkill /f /im HololiveCursorApp.exe >nul 2>&1
 timeout /t 1 /nobreak >nul
@@ -23,7 +23,6 @@ echo.
 echo ========================================================
 echo  正在清理舊輸出目錄...
 echo ========================================================
-if exist "%~dp0鼠標工具.exe" del /f /q "%~dp0鼠標工具.exe"
 if exist "%~dp0CursorManager.exe" del /f /q "%~dp0CursorManager.exe"
 if exist "%~dp0CursorManager_*.exe" del /f /q "%~dp0CursorManager_*.exe"
 if exist "%~dp0CursorTool.exe" del /f /q "%~dp0CursorTool.exe"
@@ -37,13 +36,13 @@ echo  正在以標準 Release 模式發布單一獨立執行檔...
 echo ========================================================
 dotnet publish CursorApp.csproj -c Release -o "%~dp0PublishOut"
 
-if exist "%~dp0PublishOut\CursorTool.exe" (
-    move /y "%~dp0PublishOut\CursorTool.exe" "%~dp0CursorManager.exe" >nul
+if exist "%~dp0PublishOut\CursorManager.exe" (
+    move /y "%~dp0PublishOut\CursorManager.exe" "%~dp0CursorManager.exe" >nul
     rd /s /q "%~dp0PublishOut" >nul 2>&1
     del /f /q "%~dp0*.pdb" >nul 2>&1
     echo.
     echo ========================================================
-    echo  [發布成功] 已生成純英文單一執行檔「CursorManager.exe」！
+    echo  [發布成功] 已生成「CursorManager.exe」！
     echo  現在您可以雙擊執行開啟使用或直接上傳至 GitHub Release。
     echo ========================================================
 ) else (
