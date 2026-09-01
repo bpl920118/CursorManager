@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/.NET-8.0-purple.svg" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
-  <img src="https://img.shields.io/badge/Version-v2.9.0-brightgreen.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v3.0.0-brightgreen.svg" alt="Version" />
 </p>
 
 ---
