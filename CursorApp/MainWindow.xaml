@@ -525,7 +525,7 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
                         <Border Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
-                            <TextBlock Name="TxtVersion" Text="v2.8.0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Name="TxtVersion" Text="v2.9.0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
                         </Border>
 
                         <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click"
