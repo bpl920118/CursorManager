@@ -145,7 +145,7 @@ namespace CursorManager
             var dialog = new OpenFolderDialog
             {
                 Title = "選擇資料夾位置",
-                InitialDirectory = Directory.Exists(TxtStoragePath.Text) ? TxtStoragePath.Text : AppDomain.CurrentDomain.BaseDirectory
+                InitialDirectory = Directory.Exists(TxtStoragePath.Text) ? TxtStoragePath.Text : AppPaths.DataRoot
             };
 
             if (dialog.ShowDialog() == true)

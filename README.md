@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/.NET-8.0-purple.svg" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
-  <img src="https://img.shields.io/badge/Version-v3.0.0-brightgreen.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v3.0.2-brightgreen.svg" alt="Version" />
 </p>
 
 ---
@@ -78,21 +78,23 @@
 
 ### 編譯發布指令
 ```bash
-# 複製專案
+# 複製專案（clone 後資料夾名稱為 CursorManager）
 git clone https://github.com/bpl920118/CursorManager.git
-cd CursorApp/CursorApp
+cd CursorManager/CursorApp
 
-# 發布單一執行檔
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../PublishOut
+# 發布單一執行檔（發布選項已寫入 CursorApp.csproj）
+dotnet publish -c Release -o ../PublishOut
 ```
-或直接在專案根目錄雙擊執行 `重新編譯更新.bat`。
+編譯完成後，`CursorManager.exe` 會出現在 `PublishOut/` 目錄。
+
+或在專案根目錄雙擊執行 `重新編譯更新.bat`（會直接將 exe 輸出到根目錄）。
 
 ---
 
 ## 📁 專案架構 (Project Architecture)
 
 ```
-CursorApp/
+CursorManager/                  # Git 倉庫根目錄（git clone 後的資料夾名稱）
 ├── CursorApp/                  # WPF 應用程式核心原始碼
 │   ├── App.xaml / App.xaml.cs  # 單一實例控制 (Mutex) 與全域異常攔截
 │   ├── MainWindow.xaml (.cs)   # 主介面與核心 UI/事件控制邏輯
@@ -100,13 +102,20 @@ CursorApp/
 │   ├── CursorMatcher.cs        # 智慧游標比對引擎 (支援 INF/關鍵字/正則/Fallback)
 │   ├── CursorIconHelper.cs     # RIFF ANI 動畫解析器、圖標快取與 GDI 資源管理
 │   ├── FolderScanner.cs        # 多執行緒並行資料夾掃描器 (Parallel)
+│   ├── ImportScanner.cs        # 安全匯入掃描（.zip 解壓、格式辨識）
+│   ├── UpdateChecker.cs        # GitHub Release 版本檢查
+│   ├── UpdateDownloader.cs     # 程式內下載更新檔
+│   ├── UpdateInstaller.cs      # 一鍵安裝更新並重啟
 │   ├── Models.cs               # 資料模型 (INotifyPropertyChanged)
 │   ├── RenameDialog.xaml (.cs) # 主題重新命名彈窗
-│   └── SettingsDialog.xaml (.cs)# 游標儲存庫路徑設定彈窗
+│   ├── SettingsDialog.xaml (.cs)# 游標儲存庫路徑設定彈窗
+│   ├── ConfirmDialog.xaml (.cs)# 匯入確認對話框
+│   └── UpdateDialog.xaml (.cs) # 檢查更新對話框
 ├── .gitignore                  # Git 忽略配置
 ├── LICENSE                     # MIT 開源授權
 ├── README.md                   # 專案詳細說明文檔
 ├── CONTRIBUTING.md             # 貢獻指南
+├── 重新編譯更新.bat            # 本機快速發布單一 exe
 └── 使用說明.txt                # 繁體中文快速使用手冊
 ```
 

@@ -204,7 +204,7 @@
                         <TextBlock Text="✨" FontSize="18" Margin="0,0,5,0" VerticalAlignment="Center"/>
                         <TextBlock Text="鼠標一鍵套用器" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccent}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="拖曳資料夾至此視窗即可自動配對並立即生效" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="23,2,0,0"/>
+                    <TextBlock Text="拖曳資料夾或 .zip 至此視窗即可安全匯入並立即生效" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="23,2,0,0"/>
                 </StackPanel>
 
                 <!-- Big Drag & Drop Dropzone Button -->
@@ -223,7 +223,7 @@
                         Drop="Window_Drop">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock Text="📂" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="拖曳資料夾或點此手動選擇" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="拖曳資料夾、.zip 或點此手動選擇" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
 
@@ -257,8 +257,15 @@
                 <!-- Header -->
                 <Border Grid.Row="0" Padding="14,10,14,6">
                     <Grid>
-                        <TextBlock Text="內建鼠標庫" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7" VerticalAlignment="Center"/>
-                        <TextBlock Name="TxtThemeCount" Text="0 個主題" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="內建鼠標庫" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Name="TxtThemeCount" Text="0 個主題" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="2" Name="BtnRefreshThemes" Content="↻ 重新整理" Click="BtnRefreshThemes_Click"
+                                Padding="7,3" FontSize="10.5" ToolTip="重新掃描鼠標庫，讀取手動新增或移除的主題"/>
                     </Grid>
                 </Border>
 
@@ -390,7 +397,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SuccessColor}" VerticalAlignment="Center"/>
-                            <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾拖曳進來" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"
+                            <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾 / .zip 拖曳進來" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"
                                        FontFamily="{StaticResource LatinFontFamily}"/>
                         </StackPanel>
                         <Button Grid.Column="1" Content="🔄 重新配對本目錄" Click="BtnRematch_Click" Padding="10,5" FontSize="11" VerticalAlignment="Center"
@@ -531,7 +538,7 @@
                         <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click"
                                 FontSize="11" Padding="8,4" Margin="6,0,0,0" VerticalAlignment="Center"/>
 
-                        <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊下載" Click="BtnNewUpdateFound_Click"
+                        <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊更新" Click="BtnNewUpdateFound_Click"
                                 Visibility="Collapsed" Margin="6,0,0,0" Padding="10,4" FontSize="11" FontWeight="Bold"
                                 Background="#F38BA8" Foreground="#11111B" BorderThickness="0" Cursor="Hand">
                             <Button.Resources>

@@ -11,7 +11,7 @@ namespace CursorManager
     {
         private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".ani", ".cur", ".svg", ".png"
+            ".ani", ".cur"
         };
 
         public static List<CharacterThemeItem> ScanDirectory(string baseDir)
@@ -53,8 +53,8 @@ namespace CursorManager
             try
             {
                 var files = Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly);
-                var aniFiles = files.Where(f => SupportedExtensions.Contains(Path.GetExtension(f))).ToList();
-                if (aniFiles.Count == 0)
+                var cursorFiles = files.Where(f => SupportedExtensions.Contains(Path.GetExtension(f))).ToList();
+                if (cursorFiles.Count == 0)
                     return null;
 
                 string dirName = Path.GetFileName(dir.TrimEnd('\\', '/'));
@@ -65,18 +65,18 @@ namespace CursorManager
                 string cleanName = dirName.Replace("Mouse cursor", "", StringComparison.OrdinalIgnoreCase).Trim();
                 if (string.IsNullOrWhiteSpace(cleanName)) cleanName = dirName;
 
-                string previewFile = aniFiles.FirstOrDefault(f =>
+                string previewFile = cursorFiles.FirstOrDefault(f =>
                     f.Contains("01") || f.Contains("nomal", StringComparison.OrdinalIgnoreCase) ||
                     f.Contains("normal", StringComparison.OrdinalIgnoreCase) ||
                     f.Contains("arrow", StringComparison.OrdinalIgnoreCase) ||
-                    f.Contains("default", StringComparison.OrdinalIgnoreCase)) ?? aniFiles.First();
+                    f.Contains("default", StringComparison.OrdinalIgnoreCase)) ?? cursorFiles.First();
 
                 return new CharacterThemeItem
                 {
                     Name = cleanName,
                     Group = group,
                     FolderPath = dir,
-                    FileCount = aniFiles.Count,
+                    FileCount = cursorFiles.Count,
                     PreviewFilePath = previewFile,
                     PreviewImage = CursorIconHelper.LoadCursorImage(previewFile, CursorIconHelper.SidebarPreviewSize),
                     IsTemporary = isTemporary

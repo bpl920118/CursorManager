@@ -68,28 +68,6 @@ namespace CursorManager
 
         private static ImageSource? LoadCursorImageInternal(string filePath, int size)
         {
-            string ext = Path.GetExtension(filePath).ToLowerInvariant();
-
-            // Direct support for image formats (.png, .jpg, .bmp)
-            if (ext is ".png" or ".jpg" or ".jpeg" or ".bmp")
-            {
-                try
-                {
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.UriSource = new Uri(filePath, UriKind.Absolute);
-                    bmp.DecodePixelWidth = size;
-                    bmp.EndInit();
-                    bmp.Freeze();
-                    return bmp;
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-
             try
             {
                 // Prefer native resolution so WPF can upscale with NearestNeighbor without blur.

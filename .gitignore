@@ -25,7 +25,12 @@ publish/
 config.ini
 app_config.json
 上傳GitHub.bat
+上傳GitHubRelease.bat
 發布Release.bat
+發布多版本.bat
+建立安裝包.bat
+installer/
+Releases/
 *.bat.user
 
 # Cursors large data storage folder (user's personal assets)

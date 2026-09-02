@@ -31,6 +31,8 @@ namespace CursorManager
         private bool _schemePromptOpen;
         private bool _schemePromptDismissed;
         private DispatcherTimer? _pointerSizeApplyTimer;
+        private UpdateInfo? _pendingUpdate;
+        private string _skippedUpdateVersion = string.Empty;
 
         public MainWindow()
         {
@@ -81,6 +83,7 @@ namespace CursorManager
             _cursorScaleMode = settings.CursorScaleMode;
             _appliedFolderPath = settings.AppliedFolderPath;
             _appliedThemeName = settings.AppliedThemeName;
+            _skippedUpdateVersion = settings.SkippedUpdateVersion;
             ApplyAppTheme(_currentAppTheme);
             ApplyPreviewBackground(_currentBgMode, _currentAppTheme);
             ApplyUiScale(_currentUiScale);
@@ -124,19 +127,45 @@ namespace CursorManager
 
         private async Task CheckUpdateSilentlyAsync()
         {
-            var update = await Task.Run(UpdateChecker.CheckForUpdatesAsync);
+            var settings = LoadAppSettings();
+            var update = await Task.Run(() => UpdateChecker.CheckForUpdatesAsync(settings.SkippedUpdateVersion));
             if (update.HasUpdate)
             {
-                Dispatcher.Invoke(() =>
-                {
-                    BtnNewUpdateFound.Content = $"🚀 發現新版 {update.LatestVersion}！點擊下載";
-                    BtnNewUpdateFound.Visibility = Visibility.Visible;
-                    BtnNewUpdateFound.Tag = update.ReleaseUrl;
-                });
+                Dispatcher.Invoke(() => ShowPendingUpdateBadge(update));
             }
         }
 
-        private const string ConfigFileName = "config.ini";
+        private void ShowPendingUpdateBadge(UpdateInfo update)
+        {
+            _pendingUpdate = update;
+            BtnNewUpdateFound.Content = $"🚀 發現新版 {update.LatestVersion}！點擊更新";
+            BtnNewUpdateFound.Visibility = Visibility.Visible;
+        }
+
+        private void ShowUpdateDialog(UpdateInfo update)
+        {
+            var result = UpdateDialog.Show(this, update, skippedVersion =>
+            {
+                _skippedUpdateVersion = skippedVersion;
+                SaveAppSettings(
+                    GetCursorsDataFolder(),
+                    _currentAppTheme,
+                    _currentBgMode,
+                    _currentUiScale,
+                    _cursorSizePx,
+                    _cursorScaleMode,
+                    _appliedFolderPath,
+                    _appliedThemeName,
+                    skippedVersion);
+                BtnNewUpdateFound.Visibility = Visibility.Collapsed;
+                _pendingUpdate = null;
+            });
+
+            if (result == UpdateDialogResult.Skipped)
+            {
+                SetStatus("💡", $"已略過版本 {update.LatestVersion}，下次有新版本時會再提示。", Color.FromRgb(0x89, 0xB4, 0xFA));
+            }
+        }
 
         private sealed class AppSettingsData
         {
@@ -148,18 +177,23 @@ namespace CursorManager
             public string CursorScaleMode { get; set; } = MousePointerSizeHelper.DefaultMode;
             public string AppliedFolderPath { get; set; } = string.Empty;
             public string AppliedThemeName { get; set; } = string.Empty;
+            public string SkippedUpdateVersion { get; set; } = string.Empty;
         }
 
-        private static string GetConfigFilePath()
-        {
-            string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            return Path.Combine(appDir, ConfigFileName);
-        }
+        private static string GetConfigFilePath() => AppPaths.ConfigFilePath;
 
         private static AppSettingsData LoadAppSettings()
         {
             var data = new AppSettingsData();
             string configPath = GetConfigFilePath();
+            if (!File.Exists(configPath))
+            {
+                string? legacyPath = AppPaths.FindLegacyConfigPath();
+                if (!string.IsNullOrEmpty(legacyPath))
+                    configPath = legacyPath;
+                else
+                    return data;
+            }
 
             if (!File.Exists(configPath))
                 return data;
@@ -195,6 +229,8 @@ namespace CursorManager
                             data.AppliedFolderPath = val;
                         else if (key.Equals("AppliedThemeName", StringComparison.OrdinalIgnoreCase) || key.Equals("LastAppliedTheme", StringComparison.OrdinalIgnoreCase))
                             data.AppliedThemeName = val;
+                        else if (key.Equals("SkippedUpdateVersion", StringComparison.OrdinalIgnoreCase))
+                            data.SkippedUpdateVersion = val;
                     }
                     else if (string.IsNullOrEmpty(data.FolderPath))
                     {
@@ -220,7 +256,8 @@ namespace CursorManager
                 _cursorSizePx,
                 _cursorScaleMode,
                 _appliedFolderPath,
-                _appliedThemeName);
+                _appliedThemeName,
+                _skippedUpdateVersion);
         }
 
         private static void SaveAppSettings(
@@ -231,10 +268,12 @@ namespace CursorManager
             int cursorSizePx = MousePointerSizeHelper.DefaultPx,
             string cursorScaleMode = MousePointerSizeHelper.DefaultMode,
             string appliedFolderPath = "",
-            string appliedThemeName = "")
+            string appliedThemeName = "",
+            string skippedUpdateVersion = "")
         {
             try
             {
+                Directory.CreateDirectory(AppPaths.DataRoot);
                 string configPath = GetConfigFilePath();
                 var content =
                     $"FolderPath={folderPath}\n" +
@@ -244,7 +283,8 @@ namespace CursorManager
                     $"CursorSizePx={MousePointerSizeHelper.NormalizePx(cursorSizePx)}\n" +
                     $"CursorScaleMode={MousePointerSizeHelper.NormalizeMode(cursorScaleMode)}\n" +
                     $"AppliedFolderPath={appliedFolderPath}\n" +
-                    $"AppliedThemeName={appliedThemeName}\n";
+                    $"AppliedThemeName={appliedThemeName}\n" +
+                    $"SkippedUpdateVersion={skippedUpdateVersion}\n";
                 File.WriteAllText(configPath, content);
             }
             catch (Exception ex)
@@ -395,14 +435,19 @@ namespace CursorManager
                 {
                     Title = "鼠標方案已變更",
                     Headline = $"目前鼠標不是「{name}」",
-                    Message = "鼠標已變更，要重新套用嗎？",
-                    Buttons = ConfirmDialogButtons.YesNo,
+                    Message = "偵測到系統鼠標已被外部程式變更。您可以擷取目前鼠標存入鼠標庫，或重新套用先前的主題。",
+                    Buttons = ConfirmDialogButtons.YesNoCancel,
                     Kind = ConfirmDialogKind.Question,
-                    YesText = "套用",
-                    NoText = "略過"
+                    YesText = "擷取目前鼠標",
+                    NoText = "重新套用",
+                    CancelText = "略過"
                 });
 
                 if (result == ConfirmDialogResult.Yes)
+                {
+                    ImportCurrentSystemCursors("擷取的自訂鼠標");
+                }
+                else if (result == ConfirmDialogResult.No)
                 {
                     if (!ReapplyStoredTheme(silent: true))
                         _schemePromptDismissed = true;
@@ -614,8 +659,7 @@ namespace CursorManager
                 return savedPath;
             }
 
-            string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            string defaultFolder = Path.Combine(appDir, "CursorsData");
+            string defaultFolder = AppPaths.DefaultCursorsDataFolder;
 
             // If running for the first time without config and hasn't prompted yet in this session
             if (!_hasPromptedStorageLocation)
@@ -646,7 +690,8 @@ namespace CursorManager
                     if (dlg.ShowDialog() == true)
                     {
                         SaveAppSettings(dlg.SelectedPath, dlg.SelectedAppTheme, dlg.SelectedBgMode, dlg.SelectedUiScale,
-                            dlg.SelectedCursorSizePx, dlg.SelectedCursorScaleMode, cur.AppliedFolderPath, cur.AppliedThemeName);
+                            dlg.SelectedCursorSizePx, dlg.SelectedCursorScaleMode, cur.AppliedFolderPath, cur.AppliedThemeName,
+                            cur.SkippedUpdateVersion);
                         return dlg.SelectedPath;
                     }
                 }
@@ -657,7 +702,8 @@ namespace CursorManager
                 try { Directory.CreateDirectory(defaultFolder); } catch { }
             }
             SaveAppSettings(defaultFolder, settings.AppTheme, settings.BgMode, settings.UiScale,
-                settings.CursorSizePx, settings.CursorScaleMode, settings.AppliedFolderPath, settings.AppliedThemeName);
+                settings.CursorSizePx, settings.CursorScaleMode, settings.AppliedFolderPath, settings.AppliedThemeName,
+                settings.SkippedUpdateVersion);
             return defaultFolder;
         }
 
@@ -674,12 +720,13 @@ namespace CursorManager
                 return savedPath;
             }
 
-            string appDir = AppDomain.CurrentDomain.BaseDirectory;
+            string appDir = AppPaths.InstallDirectory;
             string parentDir = Directory.GetParent(appDir)?.FullName ?? appDir;
             string grandParentDir = Directory.GetParent(parentDir)?.FullName ?? parentDir;
 
             var candidates = new[]
             {
+                AppPaths.DefaultCursorsDataFolder,
                 Path.Combine(appDir, "CursorsData"),
                 Path.Combine(parentDir, "CursorsData"),
                 Path.Combine(grandParentDir, "CursorsData")
@@ -690,13 +737,13 @@ namespace CursorManager
                 if (Directory.Exists(c)) return c;
             }
 
-            return Path.Combine(appDir, "CursorsData");
+            return AppPaths.DefaultCursorsDataFolder;
         }
 
         private void SetCustomCursorsDataFolder(string newPath)
         {
             SaveAppSettings(newPath, _currentAppTheme, _currentBgMode, _currentUiScale,
-                _cursorSizePx, _cursorScaleMode, _appliedFolderPath, _appliedThemeName);
+                _cursorSizePx, _cursorScaleMode, _appliedFolderPath, _appliedThemeName, _skippedUpdateVersion);
         }
 
         private static void CopyDirectory(string sourceDir, string destinationDir)
@@ -813,6 +860,24 @@ namespace CursorManager
             _ = ReloadThemesAsync(selectFolderPath);
         }
 
+        private async void BtnRefreshThemes_Click(object sender, RoutedEventArgs e)
+        {
+            // Preserve the selection so manually refreshing the library does not interrupt browsing.
+            string? selectedFolderPath = (LstThemes.SelectedItem as CharacterThemeItem)?.FolderPath
+                ?? (!string.IsNullOrEmpty(_currentLoadedFolder) ? _currentLoadedFolder : null);
+
+            BtnRefreshThemes.IsEnabled = false;
+            try
+            {
+                await ReloadThemesAsync(selectedFolderPath);
+                SetStatus("↻", "鼠標庫已重新整理", Color.FromRgb(0x89, 0xB4, 0xFA));
+            }
+            finally
+            {
+                BtnRefreshThemes.IsEnabled = true;
+            }
+        }
+
         private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             FilterThemes();
@@ -831,13 +896,37 @@ namespace CursorManager
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
                 return;
 
+            string? themeRoot = ImportScanner.FindThemeRootFolder(folderPath);
+            if (themeRoot == null)
+            {
+                ConfirmDialog.Alert(this, "提示",
+                    "未找到可辨識的游標檔案",
+                    "請確認資料夾內含有 .ani 或 .cur 游標檔。",
+                    ConfirmDialogKind.Information);
+                return;
+            }
+
+            var scan = ImportScanner.ScanFolder(themeRoot);
+            if (scan.TotalCursorFiles == 0)
+            {
+                ConfirmDialog.Alert(this, "提示",
+                    "未找到可辨識的游標檔案",
+                    "請確認資料夾內含有 .ani 或 .cur 游標檔。",
+                    ConfirmDialogKind.Information);
+                return;
+            }
+
             string cursorsData = EnsureCursorsDataFolderInteractive(this);
-            string folderName = Path.GetFileName(folderPath.TrimEnd('\\', '/'));
-            string targetDir = folderPath;
+            string folderName = Path.GetFileName(themeRoot.TrimEnd('\\', '/'));
+            string targetDir = themeRoot;
 
             // If the dragged folder is not already inside the current storage folder
-            if (!folderPath.StartsWith(cursorsData, StringComparison.OrdinalIgnoreCase))
+            if (!themeRoot.StartsWith(cursorsData, StringComparison.OrdinalIgnoreCase))
             {
+                var previewBullets = scan.ToPreviewBulletPoints().ToList();
+                previewBullets.Add("點選「是」：複製存入鼠標庫，並立即套用此主題");
+                previewBullets.Add("點選「否」：不複製檔案，仍立即套用，並在左側以「未存入庫」列出方便再回來");
+
                 var askResult = ConfirmDialog.Show(this, new ConfirmDialogOptions
                 {
                     Title = "匯入鼠標主題確認",
@@ -845,11 +934,7 @@ namespace CursorManager
                     Message = "是否要將此鼠標主題複製存入您的鼠標庫中？",
                     PathLabel = "目前儲存庫目錄",
                     PathHighlight = cursorsData,
-                    BulletPoints = new[]
-                    {
-                        "點選「是」：複製存入鼠標庫，並立即套用此主題",
-                        "點選「否」：不複製檔案，仍立即套用，並在左側以「未存入庫」列出方便再回來"
-                    },
+                    BulletPoints = previewBullets,
                     FooterNote = "若想自訂資料夾位置，可隨時點擊右上角「⚙️ 設定」更改",
                     Buttons = ConfirmDialogButtons.YesNoCancel
                 });
@@ -864,8 +949,8 @@ namespace CursorManager
                     targetDir = Path.Combine(cursorsData, folderName);
                     try
                     {
-                        CopyDirectory(folderPath, targetDir);
-                        ForgetTemporaryTheme(folderPath);
+                        CopyDirectory(themeRoot, targetDir);
+                        ForgetTemporaryTheme(themeRoot);
                     }
                     catch (Exception ex)
                     {
@@ -873,13 +958,13 @@ namespace CursorManager
                             $"複製至儲存庫時發生錯誤：{ex.Message}",
                             "將直接讀取原目錄。",
                             ConfirmDialogKind.Warning);
-                        targetDir = folderPath;
+                        targetDir = themeRoot;
                         RememberTemporaryTheme(targetDir);
                     }
                 }
                 else
                 {
-                    targetDir = folderPath;
+                    targetDir = themeRoot;
                     RememberTemporaryTheme(targetDir);
                 }
             }
@@ -945,9 +1030,17 @@ namespace CursorManager
                     else if (File.Exists(path))
                     {
                         string ext = Path.GetExtension(path).ToLowerInvariant();
-                        if (ext == ".exe" || ext == ".zip" || ext == ".rar" || ext == ".7z")
+                        if (ext == ".zip")
                         {
-                            HandleExecutableOrArchiveDrop(path);
+                            HandleZipArchiveDrop(path);
+                        }
+                        else if (ext == ".exe")
+                        {
+                            HandleExeDrop(path);
+                        }
+                        else if (ext == ".rar" || ext == ".7z")
+                        {
+                            HandleUnsupportedArchiveDrop(path);
                         }
                         else
                         {
@@ -959,46 +1052,74 @@ namespace CursorManager
             }
         }
 
-        private void HandleExecutableOrArchiveDrop(string filePath)
+        private void HandleZipArchiveDrop(string zipPath)
         {
-            string fileName = Path.GetFileName(filePath);
-            string baseName = Path.GetFileNameWithoutExtension(filePath);
-            string cursorsData = GetCursorsDataFolder();
-
-            // 1. First run the installer/exe
-            try
+            var (extractDir, skippedEntries, error) = ImportScanner.ExtractZipSafely(zipPath);
+            if (extractDir == null)
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = filePath,
-                    UseShellExecute = true
-                };
-                Process.Start(psi);
-            }
-            catch (Exception ex)
-            {
-                ConfirmDialog.Alert(this, "錯誤", $"執行安裝檔失敗：{ex.Message}", kind: ConfirmDialogKind.Error);
+                ConfirmDialog.Alert(this, "錯誤",
+                    $"解壓縮失敗：{error}",
+                    kind: ConfirmDialogKind.Error);
                 return;
             }
 
-            // 2. Ask user to import the applied cursor theme
-            var ask = ConfirmDialog.Show(this, new ConfirmDialogOptions
+            string? themeRoot = ImportScanner.FindThemeRootFolder(extractDir);
+            if (themeRoot == null)
             {
-                Title = "提取鼠標主題",
-                Headline = $"【{fileName}】已啟動！",
-                Message = "若您已在該安裝工具中完成套用，是否要將當前已套用的鼠標主題「提取並儲存」到您的鼠標庫中永久管理？",
+                ConfirmDialog.Alert(this, "提示",
+                    "壓縮檔內未找到鼠標檔案",
+                    "請確認 ZIP 內含有 .ani 或 .cur 游標檔。本工具不會執行壓縮檔內的安裝程式。",
+                    ConfirmDialogKind.Information);
+                return;
+            }
+
+            if (skippedEntries > 0)
+            {
+                ConfirmDialog.Alert(this, "安全提示",
+                    $"已略過 {skippedEntries} 個可疑的壓縮項目",
+                    "其餘內容已安全解壓並繼續掃描游標檔。",
+                    ConfirmDialogKind.Warning);
+            }
+
+            ImportAndLoadFolder(themeRoot);
+        }
+
+        private void HandleExeDrop(string filePath)
+        {
+            string fileName = Path.GetFileName(filePath);
+            ConfirmDialog.Show(this, new ConfirmDialogOptions
+            {
+                Title = "安全提示",
+                Kind = ConfirmDialogKind.Warning,
+                Headline = "本工具不會執行外部安裝程式",
+                Message = $"為保護您的電腦，CursorManager 不會執行「{fileName}」。",
                 BulletPoints = new[]
                 {
-                    "點選「是」：自動從系統註冊表讀取鼠標並存入鼠標庫",
-                    "點選「否」：僅執行安裝程式"
+                    "請在檔案總管中手動解壓或提取內含的游標圖示資料夾",
+                    "將包含 .ani / .cur 的資料夾或 .zip 壓縮檔拖曳進本視窗即可安全匯入",
+                    "若您已在別處安裝並套用，可使用右上角「📸 擷取鼠標」"
                 },
-                Buttons = ConfirmDialogButtons.YesNo
+                Buttons = ConfirmDialogButtons.Ok
             });
+        }
 
-            if (ask == ConfirmDialogResult.Yes)
+        private void HandleUnsupportedArchiveDrop(string filePath)
+        {
+            string fileName = Path.GetFileName(filePath);
+            ConfirmDialog.Show(this, new ConfirmDialogOptions
             {
-                ImportCurrentSystemCursors(baseName);
-            }
+                Title = "請先手動解壓",
+                Kind = ConfirmDialogKind.Information,
+                Headline = $"暫不支援直接匯入「{fileName}」",
+                Message = "請先將壓縮檔解壓縮後，將含有游標圖示的資料夾拖曳進來。",
+                BulletPoints = new[]
+                {
+                    "支援直接拖入：資料夾、.zip 壓縮檔",
+                    "不支援直接匯入：.rar、.7z（請手動解壓）",
+                    "本工具不會執行任何外部安裝程式，以確保安全"
+                },
+                Buttons = ConfirmDialogButtons.Ok
+            });
         }
 
         private void ImportCurrentSystemCursors(string defaultThemeName)
@@ -1030,9 +1151,11 @@ namespace CursorManager
                         foreach (var k in standardKeys)
                         {
                             var p = key.GetValue(k)?.ToString();
-                            if (!string.IsNullOrEmpty(p) && File.Exists(p))
+                            if (!string.IsNullOrEmpty(p))
                             {
-                                currentPaths[k] = p;
+                                p = Environment.ExpandEnvironmentVariables(p);
+                                if (File.Exists(p))
+                                    currentPaths[k] = p;
                             }
                         }
                     }
@@ -1093,6 +1216,11 @@ namespace CursorManager
 
                 ReloadThemes(targetFolder);
                 LoadFolder(targetFolder, themeName);
+                _appliedFolderPath = targetFolder;
+                _appliedThemeName = themeName;
+                _schemePromptDismissed = true;
+                PersistAppSettings();
+                RefreshInUseBadges();
                 SetStatus("✨", $"已成功將「{themeName}」鼠標主題存入鼠標庫！", Color.FromRgb(0xA6, 0xE3, 0xA1));
                 ConfirmDialog.Alert(this, "匯入成功",
                     $"已成功將「{themeName}」鼠標提取並儲存至鼠標庫！",
@@ -1529,7 +1657,8 @@ namespace CursorManager
                 _cursorSizePx = newSize;
                 _cursorScaleMode = newMode;
 
-                SaveAppSettings(newPath, newTheme, newBg, newScale, newSize, newMode, _appliedFolderPath, _appliedThemeName);
+                SaveAppSettings(newPath, newTheme, newBg, newScale, newSize, newMode, _appliedFolderPath, _appliedThemeName,
+                    _skippedUpdateVersion);
                 ApplyAppTheme(newTheme);
                 ApplyPreviewBackground(newBg, newTheme);
                 ApplyUiScale(newScale);
@@ -1572,6 +1701,7 @@ namespace CursorManager
 
         private void BtnCaptureCurrentSystem_Click(object sender, RoutedEventArgs e)
         {
+            _schemePromptDismissed = true;
             ImportCurrentSystemCursors("擷取的自訂鼠標");
         }
 
@@ -1612,31 +1742,15 @@ namespace CursorManager
             BtnCheckUpdate.IsEnabled = false;
             SetStatus("🔄", "正在檢查雲端最新版本...", Color.FromRgb(0x89, 0xB4, 0xFA));
 
-            var update = await Task.Run(UpdateChecker.CheckForUpdatesAsync);
+            var settings = LoadAppSettings();
+            var update = await Task.Run(() => UpdateChecker.CheckForUpdatesAsync(settings.SkippedUpdateVersion));
             BtnCheckUpdate.IsEnabled = true;
 
             if (update.HasUpdate)
             {
-                BtnNewUpdateFound.Content = $"🚀 發現新版 {update.LatestVersion}！點擊下載";
-                BtnNewUpdateFound.Visibility = Visibility.Visible;
-                BtnNewUpdateFound.Tag = update.ReleaseUrl;
-
-                SetStatus("🚀", $"發現新版本 {update.LatestVersion}！可點擊右側按鈕前往下載更新。", Color.FromRgb(0xF3, 0x8B, 0xA8));
-
-                var ask = ConfirmDialog.Show(this, new ConfirmDialogOptions
-                {
-                    Title = "發現新版本",
-                    Headline = $"發現 CursorManager 最新版本：【{update.LatestVersion}】",
-                    Message = $"當前運行版本：{update.CurrentVersion}\n\n【更新重點摘要】：\n{update.ReleaseNotes}",
-                    FooterNote = "是否立即前往 GitHub Releases 頁面下載最新版？",
-                    Buttons = ConfirmDialogButtons.YesNo,
-                    Kind = ConfirmDialogKind.Information
-                });
-
-                if (ask == ConfirmDialogResult.Yes)
-                {
-                    UpdateChecker.OpenReleasePage(update.ReleaseUrl);
-                }
+                ShowPendingUpdateBadge(update);
+                SetStatus("🚀", $"發現新版本 {update.LatestVersion}！可點擊右側按鈕開始下載更新。", Color.FromRgb(0xF3, 0x8B, 0xA8));
+                ShowUpdateDialog(update);
             }
             else
             {
@@ -1650,8 +1764,10 @@ namespace CursorManager
 
         private void BtnNewUpdateFound_Click(object sender, RoutedEventArgs e)
         {
-            string url = BtnNewUpdateFound.Tag?.ToString() ?? UpdateChecker.ReleaseWebUrl;
-            UpdateChecker.OpenReleasePage(url);
+            if (_pendingUpdate != null)
+                ShowUpdateDialog(_pendingUpdate);
+            else
+                UpdateChecker.OpenReleasePage();
         }
     }
 }

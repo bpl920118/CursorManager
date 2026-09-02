@@ -99,20 +99,14 @@ namespace CursorManager
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
                 return slots;
 
-            // Search for all supported files
-            var allFiles = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories)
-                .Where(f => f.EndsWith(".ani", StringComparison.OrdinalIgnoreCase) || 
-                            f.EndsWith(".cur", StringComparison.OrdinalIgnoreCase) ||
-                            f.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ||
-                            f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            // Search for cursor files (.ani / .cur only; skip PNG/SVG etc.)
+            var files = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories)
+                .Where(f => f.EndsWith(".ani", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".cur", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            if (allFiles.Count == 0)
+            if (files.Count == 0)
                 return slots;
-
-            // Prefer .ani / .cur files if available
-            var aniCurFiles = allFiles.Where(f => f.EndsWith(".ani", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".cur", StringComparison.OrdinalIgnoreCase)).ToList();
-            var files = aniCurFiles.Count > 0 ? aniCurFiles : allFiles;
 
             // 0. Match from .inf or scheme_map.ini if present, then fill remaining slots by filename
             string schemeMapFile = Path.Combine(folderPath, "scheme_map.ini");

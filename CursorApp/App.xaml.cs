@@ -56,6 +56,8 @@ namespace CursorManager
                 args.Handled = true;
             };
 
+            AppPaths.EnsureInitialized();
+
             base.OnStartup(e);
 
             if (e.Args.Length > 0 && Directory.Exists(e.Args[0]))

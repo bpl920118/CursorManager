@@ -16,6 +16,9 @@ namespace CursorManager
         public string LatestVersion { get; set; } = string.Empty;
         public string ReleaseUrl { get; set; } = string.Empty;
         public string ReleaseNotes { get; set; } = string.Empty;
+        public string DownloadUrl { get; set; } = string.Empty;
+        public long DownloadSize { get; set; }
+        public bool CanAutoDownload => !string.IsNullOrEmpty(DownloadUrl);
     }
 
     public static class UpdateChecker
@@ -25,23 +28,27 @@ namespace CursorManager
         private const string ApiUrl = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
         public const string ReleaseWebUrl = $"https://github.com/{RepoOwner}/{RepoName}/releases/latest";
 
-        public static async Task<UpdateInfo> CheckForUpdatesAsync()
+        private static readonly string[] DownloadAssetNames =
+        {
+            "CursorManager.exe",
+            "CursorTool.exe"
+        };
+
+        public static async Task<UpdateInfo> CheckForUpdatesAsync(string? skippedVersion = null)
         {
             var info = new UpdateInfo();
             try
             {
-                var curVer = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(2, 5, 0);
-                info.CurrentVersion = $"v{curVer.Major}.{curVer.Minor}.{curVer.Build}";
+                var curVer = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(3, 0, 0);
+                info.CurrentVersion = FormatVersion(curVer);
 
                 using var client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(5);
+                client.Timeout = TimeSpan.FromSeconds(10);
                 client.DefaultRequestHeaders.Add("User-Agent", "CursorManager-App");
 
                 var resp = await client.GetAsync(ApiUrl);
                 if (!resp.IsSuccessStatusCode)
-                {
                     return info;
-                }
 
                 var jsonStr = await resp.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(jsonStr);
@@ -53,17 +60,17 @@ namespace CursorManager
 
                 info.LatestVersion = tagName;
                 info.ReleaseUrl = string.IsNullOrEmpty(htmlUrl) ? ReleaseWebUrl : htmlUrl;
-                info.ReleaseNotes = body;
+                info.ReleaseNotes = body.Trim();
+
+                ParseDownloadAsset(root, info);
+
+                if (!string.IsNullOrWhiteSpace(skippedVersion) &&
+                    VersionsEqual(tagName, skippedVersion))
+                    return info;
 
                 var cleanTag = Regex.Replace(tagName, @"[^\d\.]", "");
-                if (Version.TryParse(cleanTag, out var remoteVer))
-                {
-                    // If remote version is greater than current version
-                    if (remoteVer > curVer)
-                    {
-                        info.HasUpdate = true;
-                    }
-                }
+                if (Version.TryParse(cleanTag, out var remoteVer) && remoteVer > curVer)
+                    info.HasUpdate = true;
             }
             catch
             {
@@ -71,6 +78,52 @@ namespace CursorManager
             }
 
             return info;
+        }
+
+        private static void ParseDownloadAsset(JsonElement root, UpdateInfo info)
+        {
+            if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                return;
+
+            foreach (var asset in assets.EnumerateArray())
+            {
+                string name = asset.TryGetProperty("name", out var nameElem) ? nameElem.GetString() ?? "" : "";
+                if (!IsDownloadAsset(name))
+                    continue;
+
+                string url = asset.TryGetProperty("browser_download_url", out var urlElem)
+                    ? urlElem.GetString() ?? ""
+                    : "";
+                if (string.IsNullOrEmpty(url))
+                    continue;
+
+                info.DownloadUrl = url;
+                if (asset.TryGetProperty("size", out var sizeElem) && sizeElem.TryGetInt64(out long size))
+                    info.DownloadSize = size;
+                return;
+            }
+        }
+
+        private static bool IsDownloadAsset(string name)
+        {
+            foreach (var candidate in DownloadAssetNames)
+            {
+                if (name.Equals(candidate, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                   name.Contains("Cursor", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string FormatVersion(Version version) =>
+            $"v{version.Major}.{version.Minor}.{version.Build}";
+
+        public static bool VersionsEqual(string a, string b)
+        {
+            string cleanA = Regex.Replace(a ?? "", @"[^\d\.]", "");
+            string cleanB = Regex.Replace(b ?? "", @"[^\d\.]", "");
+            return cleanA.Equals(cleanB, StringComparison.OrdinalIgnoreCase);
         }
 
         public static void OpenReleasePage(string? url = null)
