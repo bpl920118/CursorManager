@@ -12,7 +12,7 @@ namespace CursorManager
 
         public const string AppFontFamily = "Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif";
 
-        private const double BaseScale = 1.12;
+        private const double BaseScale = 1.0;
 
         private static readonly Dictionary<string, double> PresetMultipliers = new(StringComparer.OrdinalIgnoreCase)
         {

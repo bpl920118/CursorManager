@@ -42,15 +42,12 @@ namespace CursorManager
             ["Hand"] = 32649,
             ["AppStarting"] = 32650,
             ["Help"] = 32651,
-            ["NWPen"] = 32631
+            ["NWPen"] = 32631,
+            ["Person"] = 32672,
+            ["Pin"] = 32671
         };
 
-        private static readonly string[] StandardCursorKeys = new[]
-        {
-            "Arrow", "Help", "AppStarting", "Wait", "Crosshair", "IBeam",
-            "NWPen", "No", "SizeNS", "SizeWE", "SizeNWSE", "SizeNESW",
-            "SizeAll", "UpArrow", "Hand"
-        };
+        private static readonly string[] StandardCursorKeys = WindowsCursorSlots.RegistryKeyOrder;
 
         public static bool ApplyCursors(
             IEnumerable<CursorSlot> slots,
@@ -69,6 +66,9 @@ namespace CursorManager
 
                 foreach (var slot in slots)
                 {
+                    if (slot.IsExtra)
+                        continue;
+
                     if (!string.IsNullOrEmpty(slot.FilePath) && File.Exists(slot.FilePath))
                         installedPaths[slot.KeyName] = Path.GetFullPath(slot.FilePath);
                 }

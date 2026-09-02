@@ -191,10 +191,10 @@ namespace CursorManager
                 var seq = new AniFrameSequence();
                 string tempDir = Path.Combine(Path.GetTempPath(), "CursorManagerAniPreview");
                 Directory.CreateDirectory(tempDir);
+                string tempIconPath = Path.Combine(tempDir, "_preview_frame.cur");
 
                 for (int i = 0; i < iconBlocks.Count; i++)
                 {
-                    string tempIconPath = Path.Combine(tempDir, $"frame_{Guid.NewGuid():N}.cur");
                     try
                     {
                         File.WriteAllBytes(tempIconPath, iconBlocks[i]);
@@ -206,10 +206,7 @@ namespace CursorManager
                             seq.FrameRatesInJiffies.Add(r);
                         }
                     }
-                    finally
-                    {
-                        try { File.Delete(tempIconPath); } catch { }
-                    }
+                    catch { }
                 }
 
                 return seq.Frames.Count > 0 ? seq : null;

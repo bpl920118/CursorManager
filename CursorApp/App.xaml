@@ -26,33 +26,45 @@
         </DrawingBrush>
 
         <!-- Dynamic Theme Colors (Default Dark) -->
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#181825"/>
-        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#181825"/>
-        <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="BottomBarBackgroundBrush" Color="#11111B"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#CDD6F4"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A6ADC8"/>
-        <SolidColorBrush x:Key="TextMutedBrush" Color="#6C7086"/>
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="CardItemInnerBackgroundBrush" Color="#181825"/>
-        <SolidColorBrush x:Key="BorderColorBrush" Color="#313244"/>
-        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#12121C"/>
+        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#161622"/>
+        <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#12121C"/>
+        <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="BottomBarBackgroundBrush" Color="#0E0E16"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#ECEFF8"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A8AFC9"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#727890"/>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1A1A28"/>
+        <SolidColorBrush x:Key="CardItemInnerBackgroundBrush" Color="#14141E"/>
+        <SolidColorBrush x:Key="BorderColorBrush" Color="#353548"/>
+        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#353548"/>
         <SolidColorBrush x:Key="ButtonHoverBackgroundBrush" Color="#45475A"/>
         <SolidColorBrush x:Key="ButtonPressedBackgroundBrush" Color="#585B70"/>
-        <SolidColorBrush x:Key="ButtonHoverForegroundBrush" Color="#CDD6F4"/>
-        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#313244"/>
+        <SolidColorBrush x:Key="ButtonHoverForegroundBrush" Color="#ECEFF8"/>
+        <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#353548"/>
         <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#F38BA8"/>
         <SolidColorBrush x:Key="SecondaryButtonBorderBrush" Color="#45475A"/>
         <SolidColorBrush x:Key="SecondaryButtonHoverBackgroundBrush" Color="#45475A"/>
         <SolidColorBrush x:Key="SecondaryButtonHoverForegroundBrush" Color="#F5C2D0"/>
-        <SolidColorBrush x:Key="ItemHoverBackgroundBrush" Color="#252535"/>
-        <SolidColorBrush x:Key="ItemSelectedBackgroundBrush" Color="#2A2A3C"/>
-        <SolidColorBrush x:Key="ItemSelectedHoverBackgroundBrush" Color="#32324A"/>
-        <SolidColorBrush x:Key="SlotHoverBackgroundBrush" Color="#222233"/>
-        <SolidColorBrush x:Key="SlotSelectedBackgroundBrush" Color="#2A2A3C"/>
-        <SolidColorBrush x:Key="DialogCardBrush" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="DialogInputBrush" Color="#181825"/>
+        <SolidColorBrush x:Key="ItemHoverBackgroundBrush" Color="#222233"/>
+        <SolidColorBrush x:Key="ItemSelectedBackgroundBrush" Color="#2E3350"/>
+        <SolidColorBrush x:Key="ItemSelectedHoverBackgroundBrush" Color="#363C5C"/>
+        <SolidColorBrush x:Key="SlotHoverBackgroundBrush" Color="#1E1E30"/>
+        <SolidColorBrush x:Key="SlotSelectedBackgroundBrush" Color="#2E3350"/>
+        <SolidColorBrush x:Key="DialogCardBrush" Color="#1A1A28"/>
+        <SolidColorBrush x:Key="DialogInputBrush" Color="#12121C"/>
+        <SolidColorBrush x:Key="InputSelectionBrush" Color="#45475A"/>
+        <SolidColorBrush x:Key="InputSelectionTextBrush" Color="#ECEFF8"/>
+        <SolidColorBrush x:Key="ChipCheckedBackgroundBrush" Color="#2E3350"/>
+        <SolidColorBrush x:Key="ChipCheckedForegroundBrush" Color="#C8D8FF"/>
+        <SolidColorBrush x:Key="AccentTitleBrush" Color="#C4A8FF"/>
+        <SolidColorBrush x:Key="SubtleButtonBackgroundBrush" Color="#1E1E30"/>
+        <SolidColorBrush x:Key="SecondaryActionBackgroundBrush" Color="#1A1A28"/>
+        <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#3B7AED"/>
+        <SolidColorBrush x:Key="PrimaryButtonHoverBackgroundBrush" Color="#5090FF"/>
+        <SolidColorBrush x:Key="PrimaryButtonPressedBackgroundBrush" Color="#2F66D4"/>
+        <SolidColorBrush x:Key="DropZoneBorderBrush" Color="#4A6FA8"/>
+        <SolidColorBrush x:Key="PopupBackgroundBrush" Color="#1A1A28"/>
 
         <!-- Dynamic Preview Slot Background Brush -->
         <SolidColorBrush x:Key="SlotPreviewBackgroundBrush" Color="#11111B"/>
@@ -61,11 +73,136 @@
         <!-- Accent Colors -->
         <FontFamily x:Key="UiFontFamily">Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif</FontFamily>
         <FontFamily x:Key="LatinFontFamily">Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
-        <SolidColorBrush x:Key="PrimaryAccent" Color="#89B4FA"/>
+        <SolidColorBrush x:Key="PrimaryAccent" Color="#5B9CF5"/>
         <SolidColorBrush x:Key="SuccessColor" Color="#A6E3A1"/>
         <SolidColorBrush x:Key="SuccessFileTextBrush" Color="#A6E3A1"/>
         <SolidColorBrush x:Key="WarningColor" Color="#F9E2AF"/>
         <SolidColorBrush x:Key="SubText" Color="#A6ADC8"/>
+        <SolidColorBrush x:Key="FavoriteStarBrush" Color="#F9E2AF"/>
+        <SolidColorBrush x:Key="FavoriteStarMutedBrush" Color="#6B6F85"/>
+        <SolidColorBrush x:Key="DangerTextBrush" Color="#F38BA8"/>
+        <SolidColorBrush x:Key="DangerBackgroundBrush" Color="#F38BA818"/>
+        <SolidColorBrush x:Key="DangerBorderBrush" Color="#F38BA844"/>
+        <SolidColorBrush x:Key="GroupHeaderBackgroundBrush" Color="#1E1E30"/>
+        <SolidColorBrush x:Key="InUseBadgeBackgroundBrush" Color="#1A3D2E"/>
+        <SolidColorBrush x:Key="InUseBadgeBorderBrush" Color="#40A02B"/>
+        <SolidColorBrush x:Key="InUseBadgeTextBrush" Color="#A6E3A1"/>
+        <SolidColorBrush x:Key="StatusSuccessBrush" Color="#A6E3A1"/>
+        <SolidColorBrush x:Key="StatusInfoBrush" Color="#89B4FA"/>
+        <SolidColorBrush x:Key="StatusWarningBrush" Color="#F9E2AF"/>
+        <SolidColorBrush x:Key="StatusErrorBrush" Color="#F38BA8"/>
+
+        <!-- Global themed controls -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource PrimaryAccent}"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource InputSelectionBrush}"/>
+            <Setter Property="SelectionTextBrush" Value="{DynamicResource InputSelectionTextBrush}"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ItemTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Content, RelativeSource={RelativeSource AncestorType=ComboBoxItem}}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   FontSize="10.5" Padding="2,0"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="ComboBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    SnapsToDevicePixels="True">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="22"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="SelectedText"
+                                               Grid.Column="0"
+                                               Margin="8,0,2,0"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Left"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontSize="10.5"
+                                               Text="{Binding SelectedItem.Content, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                    <Path Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Data="M0,0 L4,4 L8,0 Z" Fill="{DynamicResource TextSecondaryBrush}"/>
+                                    <ToggleButton Grid.ColumnSpan="2"
+                                                  Focusable="False"
+                                                  ClickMode="Press"
+                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+                            <Popup x:Name="PART_Popup" Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="{DynamicResource PopupBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderColorBrush}"
+                                        BorderThickness="1" CornerRadius="6"
+                                        MinWidth="{Binding ActualWidth, ElementName=ComboBorder}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        Margin="0,2,0,0">
+                                    <ScrollViewer SnapsToDevicePixels="True" Padding="2">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="{DynamicResource PopupBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ItemHoverBackgroundBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ItemSelectedBackgroundBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="TreeView">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style TargetType="TreeViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
 
         <!-- Smooth pointer-size slider, theme-aware -->
         <Style x:Key="PointerSizeSlider" TargetType="Slider">
@@ -73,13 +210,13 @@
             <Setter Property="Maximum" Value="96"/>
             <Setter Property="IsSnapToTickEnabled" Value="False"/>
             <Setter Property="IsMoveToPointEnabled" Value="True"/>
-            <Setter Property="Height" Value="28"/>
+            <Setter Property="Height" Value="24"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Focusable" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center" MinWidth="120" Height="28">
+                        <Grid VerticalAlignment="Center" MinWidth="120" Height="24">
                             <Border Height="6" CornerRadius="3" Margin="9,0"
                                     Background="{DynamicResource BorderColorBrush}"
                                     VerticalAlignment="Center"/>

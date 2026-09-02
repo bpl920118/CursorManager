@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/.NET-8.0-purple.svg" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" />
-  <img src="https://img.shields.io/badge/Version-v3.0.2-brightgreen.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v3.1.0-brightgreen.svg" alt="Version" />
 </p>
 
 ---
@@ -110,6 +110,8 @@ CursorManager/                  # Git 倉庫根目錄（git clone 後的資料�
 │   ├── RenameDialog.xaml (.cs) # 主題重新命名彈窗
 │   ├── SettingsDialog.xaml (.cs)# 游標儲存庫路徑設定彈窗
 │   ├── ConfirmDialog.xaml (.cs)# 匯入確認對話框
+│   ├── TextInputDialog.xaml (.cs)# 主題重新命名輸入框
+│   ├── ThemeMetadataStore.cs   # 收藏、近期使用與排序偏好
 │   └── UpdateDialog.xaml (.cs) # 檢查更新對話框
 ├── .gitignore                  # Git 忽略配置
 ├── LICENSE                     # MIT 開源授權

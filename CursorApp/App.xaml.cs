@@ -52,7 +52,18 @@ namespace CursorManager
 
             DispatcherUnhandledException += (s, args) =>
             {
-                MessageBox.Show("UI錯誤: " + args.Exception.Message, "程式錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                try
+                {
+                    ConfirmDialog.Alert(
+                        Current.MainWindow,
+                        "程式錯誤",
+                        args.Exception.Message,
+                        kind: ConfirmDialogKind.Error);
+                }
+                catch
+                {
+                    MessageBox.Show("UI錯誤: " + args.Exception.Message, "程式錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
                 args.Handled = true;
             };
 

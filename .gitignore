@@ -24,6 +24,7 @@ publish/
 # User custom config & deployment batch scripts (Private / Local only)
 config.ini
 app_config.json
+themes-metadata.json
 上傳GitHub.bat
 上傳GitHubRelease.bat
 發布Release.bat

@@ -25,7 +25,9 @@ namespace CursorManager
             ["SizeAll"] = new[] { "move", "sizeall", "size_all", "all-scroll", "fleur" },
             ["UpArrow"] = new[] { "uparrow", "alternate", "up_arrow", "center_ptr", "up" },
             // Do not use bare "hand" here — it false-matches "Handwriting" (NWPen slot).
-            ["Hand"] = new[] { "link", "pointing_hand", "hand2", "openhand", "grab" }
+            ["Hand"] = new[] { "link", "pointing_hand", "hand2", "openhand", "grab" },
+            ["Person"] = new[] { "person", "personselect", "person_select", "selectperson" },
+            ["Pin"] = new[] { "pin", "location", "locationselect", "location_select", "selectlocation", "aero_pin" }
         };
 
         // Standard Windows animated cursor pack basenames (see install.inf [Strings])
@@ -45,7 +47,9 @@ namespace CursorManager
             ["Diagonal2"] = "SizeNESW",
             ["Move"] = "SizeAll",
             ["Alternate"] = "UpArrow",
-            ["Link"] = "Hand"
+            ["Link"] = "Hand",
+            ["Person"] = "Person",
+            ["Pin"] = "Pin"
         };
 
         private static readonly Dictionary<string, string[]> InfTagMap = new(StringComparer.OrdinalIgnoreCase)
@@ -65,11 +69,13 @@ namespace CursorManager
             ["SizeNESW"] = new[] { "dgn2", "sizenesw", "nesw-resize", "cur_12" },
             ["SizeAll"] = new[] { "move", "sizeall", "cur_13" },
             ["UpArrow"] = new[] { "alternate", "uparrow", "up", "cur_14" },
-            ["Hand"] = new[] { "link", "cur_15" }
+            ["Hand"] = new[] { "link", "cur_15" },
+            ["Person"] = new[] { "person", "cur_16" },
+            ["Pin"] = new[] { "pin", "location", "cur_17" }
         };
 
         private static readonly Regex TagRegex = new(@"\[(.*?)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex NumberPrefixRegex = new(@"(?:_|\b)(0[1-9]|1[0-5])(?:\b|_|\[)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex NumberPrefixRegex = new(@"(?:_|\b)(0[1-9]|1[0-7])(?:\b|_|\[)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public static List<CursorSlot> CreateDefaultSlots()
         {
@@ -89,11 +95,34 @@ namespace CursorManager
                 new CursorSlot { Order = 12, KeyName = "SizeNESW",    DisplayName = "對角調整 2",     EnglishName = "Diagonal Resize 2" },
                 new CursorSlot { Order = 13, KeyName = "SizeAll",     DisplayName = "移動",           EnglishName = "Move" },
                 new CursorSlot { Order = 14, KeyName = "UpArrow",     DisplayName = "替代選取",       EnglishName = "Alternate Select" },
-                new CursorSlot { Order = 15, KeyName = "Hand",        DisplayName = "連結選取",       EnglishName = "Link Select" }
+                new CursorSlot { Order = 15, KeyName = "Hand",        DisplayName = "連結選取",       EnglishName = "Link Select" },
+                new CursorSlot { Order = 16, KeyName = "Person",      DisplayName = "選取人員",       EnglishName = "Person Select" },
+                new CursorSlot { Order = 17, KeyName = "Pin",         DisplayName = "選取位置",       EnglishName = "Location Select" }
             };
         }
 
-        public static List<CursorSlot> MatchFolder(string folderPath)
+        public static List<CursorSlot> MatchFolder(string folderPath, bool loadAniSequences = true)
+        {
+            var slots = MatchFolderSlots(folderPath);
+            LoadSlotStaticPreviews(slots);
+            if (loadAniSequences)
+            {
+                LoadSlotAniSequences(slots);
+                ApplyAniPreviewFrames(slots);
+            }
+            return slots;
+        }
+
+        /// <summary>
+        /// How many of the 17 Windows cursor slots are filled for this folder (excludes unknown extras).
+        /// </summary>
+        public static int CountMatchedSlots(string folderPath)
+        {
+            return MatchFolderSlots(folderPath).Count(s =>
+                !s.IsExtra && !string.IsNullOrEmpty(s.FilePath) && File.Exists(s.FilePath));
+        }
+
+        public static List<CursorSlot> MatchFolderSlots(string folderPath)
         {
             var slots = CreateDefaultSlots();
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
@@ -199,10 +228,33 @@ namespace CursorManager
 
             // 4. Apply smart fallbacks for missing slots
             ApplySmartFallbacks(slots, files);
-
-            // 5. Load previews
-            LoadSlotPreviews(slots);
+            AppendExtraFileSlots(slots, files);
             return slots;
+        }
+
+        private static void AppendExtraFileSlots(List<CursorSlot> slots, List<string> files)
+        {
+            var usedPaths = new HashSet<string>(
+                slots.Where(s => !string.IsNullOrEmpty(s.FilePath)).Select(s => s.FilePath),
+                StringComparer.OrdinalIgnoreCase);
+
+            int extraOrder = 100;
+            foreach (var file in files.OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                if (usedPaths.Contains(file))
+                    continue;
+
+                string baseName = Path.GetFileNameWithoutExtension(file);
+                slots.Add(new CursorSlot
+                {
+                    Order = extraOrder++,
+                    KeyName = string.Empty,
+                    IsExtra = true,
+                    DisplayName = baseName,
+                    EnglishName = "無對應 Windows 功能",
+                    FilePath = file
+                });
+            }
         }
 
         private static void ApplySmartFallbacks(List<CursorSlot> slots, List<string> files)
@@ -274,23 +326,58 @@ namespace CursorManager
             }
         }
 
-        private static void LoadSlotPreviews(List<CursorSlot> slots)
+        public static void LoadSlotAniSequences(List<CursorSlot> slots)
         {
             foreach (var slot in slots)
             {
-                if (!string.IsNullOrEmpty(slot.FilePath))
+                if (string.IsNullOrEmpty(slot.FilePath) ||
+                    !slot.FilePath.EndsWith(".ani", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                slot.AniSequence = CursorIconHelper.LoadAniSequence(slot.FilePath, CursorIconHelper.SlotPreviewLoadSize);
+                if (slot.AniSequence != null && slot.AniSequence.Frames.Count > 0)
                 {
-                    slot.PreviewImage = CursorIconHelper.LoadCursorImage(slot.FilePath, CursorIconHelper.SlotPreviewLoadSize);
-                    if (slot.FilePath.EndsWith(".ani", StringComparison.OrdinalIgnoreCase))
-                    {
-                        slot.AniSequence = CursorIconHelper.LoadAniSequence(slot.FilePath, CursorIconHelper.SlotPreviewLoadSize);
-                        if (slot.AniSequence != null && slot.AniSequence.Frames.Count > 0)
-                        {
-                            slot.PreviewImage = slot.AniSequence.Frames[0];
-                        }
-                    }
+                    slot.CurrentFrameIndex = 0;
+                    slot.NextFrameCountdown = slot.AniSequence.FrameRatesInJiffies.Count > 0
+                        ? Math.Max(1, slot.AniSequence.FrameRatesInJiffies[0])
+                        : 10;
                 }
             }
+        }
+
+        public static void ApplyAniPreviewFrames(List<CursorSlot> slots)
+        {
+            foreach (var slot in slots)
+            {
+                if (slot.AniSequence != null && slot.AniSequence.Frames.Count > 0)
+                    slot.PreviewImage = slot.AniSequence.Frames[slot.CurrentFrameIndex];
+            }
+        }
+
+        private static void LoadSlotStaticPreviews(List<CursorSlot> slots)
+        {
+            foreach (var slot in slots)
+            {
+                slot.AniSequence = null;
+                slot.CurrentFrameIndex = 0;
+                slot.NextFrameCountdown = 1;
+
+                if (!string.IsNullOrEmpty(slot.FilePath))
+                {
+                    slot.PreviewImage = CursorIconHelper.LoadCursorImage(
+                        slot.FilePath, CursorIconHelper.SlotPreviewLoadSize);
+                }
+                else
+                {
+                    slot.PreviewImage = null;
+                }
+            }
+        }
+
+        private static void LoadSlotPreviews(List<CursorSlot> slots)
+        {
+            LoadSlotStaticPreviews(slots);
+            LoadSlotAniSequences(slots);
         }
 
         private static void MatchFromInfFile(string infPath, List<CursorSlot> slots, string baseFolder)
@@ -489,6 +576,11 @@ namespace CursorManager
             // "hand" must not steal Handwriting.ani (NWPen)
             if (keyword.Equals("hand", StringComparison.OrdinalIgnoreCase) &&
                 fileName.Contains("handwriting", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // "pen" must not steal Person.ani (Person slot)
+            if (keyword.Equals("pen", StringComparison.OrdinalIgnoreCase) &&
+                fileName.Contains("person", StringComparison.OrdinalIgnoreCase))
                 return false;
 
             return fileName.Contains(keyword, StringComparison.OrdinalIgnoreCase);

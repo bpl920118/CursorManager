@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -14,8 +16,25 @@ namespace CursorManager
 {
     public partial class MainWindow : Window
     {
+        public static readonly DependencyProperty IsBatchDeleteModeProperty =
+            DependencyProperty.Register(
+                nameof(IsBatchDeleteMode),
+                typeof(bool),
+                typeof(MainWindow),
+                new PropertyMetadata(false));
+
+        public bool IsBatchDeleteMode
+        {
+            get => (bool)GetValue(IsBatchDeleteModeProperty);
+            set => SetValue(IsBatchDeleteModeProperty, value);
+        }
+
         private List<CharacterThemeItem> _allThemes = new();
         private readonly List<CharacterThemeItem> _temporaryThemes = new();
+        private readonly ObservableCollection<ThemeGroupNode> _themeGroups = new();
+        private readonly ObservableCollection<CharacterThemeItem> _flatThemeList = new();
+        private bool IsFlatThemeList => ThemeMetadataStore.FilterMode == ThemeFilterMode.Recent;
+        private Dictionary<string, bool> _groupExpandedState = new(StringComparer.OrdinalIgnoreCase);
         private ObservableCollection<CursorSlot> _currentSlots = new();
         private string _currentLoadedFolder = string.Empty;
         private string _appliedFolderPath = string.Empty;
@@ -28,21 +47,26 @@ namespace CursorManager
         private int _cursorSizePx = MousePointerSizeHelper.DefaultPx;
         private string _cursorScaleMode = MousePointerSizeHelper.DefaultMode;
         private bool _suppressPointerSizeEvent;
+        private bool _suppressThemeFilterEvent;
         private bool _schemePromptOpen;
         private bool _schemePromptDismissed;
+        private bool _skipSchemeMismatchCheck;
         private DispatcherTimer? _pointerSizeApplyTimer;
         private UpdateInfo? _pendingUpdate;
         private string _skippedUpdateVersion = string.Empty;
+        private bool _userCollapsedAllGroups;
+        private bool _themeTreeShowsFlatList;
+        private int _loadFolderToken;
 
         public MainWindow()
         {
             InitializeComponent();
             ItemsCursorSlots.ItemsSource = _currentSlots;
 
-            // Initialize Animation playback timer (every 16ms ~ 60 FPS)
-            _aniTimer = new DispatcherTimer(DispatcherPriority.Render)
+            // Animation preview timer (~30 FPS; enough for slot previews without overloading UI)
+            _aniTimer = new DispatcherTimer(DispatcherPriority.Background)
             {
-                Interval = TimeSpan.FromMilliseconds(16)
+                Interval = TimeSpan.FromMilliseconds(33)
             };
             _aniTimer.Tick += AniTimer_Tick;
             _aniTimer.Start();
@@ -88,23 +112,48 @@ namespace CursorManager
             ApplyPreviewBackground(_currentBgMode, _currentAppTheme);
             ApplyUiScale(_currentUiScale);
             SyncPointerSizeUi();
+            ThemeMetadataStore.EnsureLoaded();
+        }
+
+        private void SyncThemeFilterUi()
+        {
+            _suppressThemeFilterEvent = true;
+            try
+            {
+                BtnFilterAll.IsChecked = ThemeMetadataStore.FilterMode == ThemeFilterMode.All;
+                BtnFilterFavorites.IsChecked = ThemeMetadataStore.FilterMode == ThemeFilterMode.Favorites;
+                BtnFilterRecent.IsChecked = ThemeMetadataStore.FilterMode == ThemeFilterMode.Recent;
+
+                foreach (ComboBoxItem comboItem in CmbThemeSort.Items)
+                {
+                    if (comboItem.Tag is string tag &&
+                        tag.Equals(ThemeMetadataStore.SortMode.ToString(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        CmbThemeSort.SelectedItem = comboItem;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                _suppressThemeFilterEvent = false;
+            }
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            SyncThemeFilterUi();
             await ReloadThemesAsync();
 
             // Check if launched with folder argument (e.g. dragged onto exe)
             if (!string.IsNullOrEmpty(App.StartupFolder) && Directory.Exists(App.StartupFolder))
             {
                 ImportAndLoadFolder(App.StartupFolder);
-                // Automatically apply if launched with folder
-                BtnApplyTheme_Click(this, new RoutedEventArgs());
             }
             else if (_allThemes.Count > 0)
             {
-                // Auto select first theme
-                LstThemes.SelectedIndex = 0;
+                ExpandAllThemeGroups();
+                SelectFirstThemeIfAny();
             }
             else
             {
@@ -163,7 +212,7 @@ namespace CursorManager
 
             if (result == UpdateDialogResult.Skipped)
             {
-                SetStatus("💡", $"已略過版本 {update.LatestVersion}，下次有新版本時會再提示。", Color.FromRgb(0x89, 0xB4, 0xFA));
+                SetStatus("💡", $"已略過版本 {update.LatestVersion}，下次有新版本時會再提示。", StatusTone.Info);
             }
         }
 
@@ -364,7 +413,7 @@ namespace CursorManager
                 CursorInstaller.ApplyPointerSizeOnly(_cursorSizePx, _cursorScaleMode);
             }
 
-            SetStatus("🖱️", $"鼠標大小已調整成 {MousePointerSizeHelper.NormalizePx(_cursorSizePx)} PX", Color.FromRgb(0xA6, 0xE3, 0xA1));
+            SetStatus("🖱️", $"鼠標大小已調整成 {MousePointerSizeHelper.NormalizePx(_cursorSizePx)} PX", StatusTone.Success);
         }
 
         private void BtnReapplyLast_Click(object sender, RoutedEventArgs e)
@@ -401,7 +450,7 @@ namespace CursorManager
                 TryApplyCurrentTheme(silent: true);
                 _schemePromptDismissed = false;
                 if (!silent)
-                    SetStatus("🔁", $"已套用「{name}」（{MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}）", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    SetStatus("🔁", $"已套用「{name}」（{MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}）", StatusTone.Success);
                 return true;
             }
             catch (Exception ex)
@@ -415,8 +464,14 @@ namespace CursorManager
         private void MaybePromptSchemeRestore()
         {
             if (_schemePromptOpen) return;
+            if (_skipSchemeMismatchCheck) return;
             if (string.IsNullOrEmpty(_appliedFolderPath)) return;
             if (!Directory.Exists(_appliedFolderPath)) return;
+
+            // Previewing another theme in the list — system cursor is expected to differ.
+            if (!string.IsNullOrEmpty(_currentLoadedFolder) &&
+                !string.Equals(_currentLoadedFolder, _appliedFolderPath, StringComparison.OrdinalIgnoreCase))
+                return;
 
             if (CursorInstaller.IsAppliedSchemeStillActive(_appliedFolderPath))
             {
@@ -424,7 +479,7 @@ namespace CursorManager
                 return;
             }
 
-            // User already chose「否」for this mismatch — don't spam on every Activated.
+            // User already chose「略過」for this mismatch — don't spam on every Activated.
             if (_schemePromptDismissed) return;
 
             _schemePromptOpen = true;
@@ -547,38 +602,90 @@ namespace CursorManager
                     appRes["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
                     appRes["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0xEA, 0xED, 0xF3));
                     appRes["SuccessFileTextBrush"] = new SolidColorBrush(Color.FromRgb(0x2D, 0x8A, 0x4E));
+                    appRes["InputSelectionBrush"] = new SolidColorBrush(Color.FromRgb(0xB4, 0xD0, 0xFE));
+                    appRes["InputSelectionTextBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                    appRes["ChipCheckedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xDC, 0xE6, 0xFA));
+                    appRes["ChipCheckedForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x3A, 0x6E));
+                    appRes["AccentTitleBrush"] = new SolidColorBrush(Color.FromRgb(0x6E, 0x4F, 0xB8));
+                    appRes["SubtleButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE4, 0xE8, 0xF0));
+                    appRes["SecondaryActionBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    appRes["PrimaryButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x3B, 0x7A, 0xED));
+                    appRes["PrimaryButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x50, 0x90, 0xFF));
+                    appRes["PrimaryButtonPressedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2F, 0x66, 0xD4));
+                    appRes["DropZoneBorderBrush"] = new SolidColorBrush(Color.FromRgb(0x6A, 0x90, 0xD8));
+                    appRes["PopupBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    appRes["FavoriteStarBrush"] = new SolidColorBrush(Color.FromRgb(0xDF, 0x8E, 0x1D));
+                    appRes["FavoriteStarMutedBrush"] = new SolidColorBrush(Color.FromRgb(0xA0, 0xA4, 0xB8));
+                    appRes["DangerTextBrush"] = new SolidColorBrush(Color.FromRgb(0xD6, 0x33, 0x6C));
+                    appRes["DangerBackgroundBrush"] = new SolidColorBrush(Color.FromArgb(0x18, 0xD6, 0x33, 0x6C));
+                    appRes["DangerBorderBrush"] = new SolidColorBrush(Color.FromArgb(0x55, 0xD6, 0x33, 0x6C));
+                    appRes["GroupHeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xE0, 0xE4, 0xEC));
+                    appRes["InUseBadgeBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0xD8, 0xF0, 0xDE));
+                    appRes["InUseBadgeBorderBrush"] = new SolidColorBrush(Color.FromRgb(0x2D, 0x8A, 0x4E));
+                    appRes["InUseBadgeTextBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x5C, 0x32));
+                    appRes["StatusSuccessBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x7D, 0x3E));
+                    appRes["StatusInfoBrush"] = new SolidColorBrush(Color.FromRgb(0x2F, 0x66, 0xD4));
+                    appRes["StatusWarningBrush"] = new SolidColorBrush(Color.FromRgb(0x9A, 0x6F, 0x00));
+                    appRes["StatusErrorBrush"] = new SolidColorBrush(Color.FromRgb(0xD6, 0x33, 0x6C));
+                    appRes["SuccessColor"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x7D, 0x3E));
                 }
                 else
                 {
                     // Dark Theme Palette (Default)
-                    appRes["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
-                    appRes["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    appRes["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
-                    appRes["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    appRes["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x1B));
-                    appRes["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4));
-                    appRes["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xAD, 0xC8));
-                    appRes["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x6C, 0x70, 0x86));
-                    appRes["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    appRes["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
-                    appRes["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
-                    appRes["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    appRes["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x1C));
+                    appRes["HeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x22));
+                    appRes["SidebarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x1C));
+                    appRes["ContentBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["BottomBarBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x0E, 0x0E, 0x16));
+                    appRes["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF8));
+                    appRes["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(0xA8, 0xAF, 0xC9));
+                    appRes["TextMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x72, 0x78, 0x90));
+                    appRes["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x28));
+                    appRes["CardItemInnerBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1E));
+                    appRes["BorderColorBrush"] = new SolidColorBrush(Color.FromRgb(0x35, 0x35, 0x48));
+                    appRes["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x35, 0x35, 0x48));
                     appRes["ButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
                     appRes["ButtonPressedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x58, 0x5B, 0x70));
-                    appRes["ButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4));
-                    appRes["SecondaryButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44));
+                    appRes["ButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF8));
+                    appRes["SecondaryButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x35, 0x35, 0x48));
                     appRes["SecondaryButtonForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF3, 0x8B, 0xA8));
                     appRes["SecondaryButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
                     appRes["SecondaryButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
                     appRes["SecondaryButtonHoverForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xF5, 0xC2, 0xD0));
-                    appRes["ItemHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x35));
-                    appRes["ItemSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x3C));
-                    appRes["ItemSelectedHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x32, 0x32, 0x4A));
-                    appRes["SlotHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x33));
-                    appRes["SlotSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x3C));
-                    appRes["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
-                    appRes["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x25));
+                    appRes["ItemHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x33));
+                    appRes["ItemSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2E, 0x33, 0x50));
+                    appRes["ItemSelectedHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x36, 0x3C, 0x5C));
+                    appRes["SlotHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x30));
+                    appRes["SlotSelectedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2E, 0x33, 0x50));
+                    appRes["DialogCardBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x28));
+                    appRes["DialogInputBrush"] = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x1C));
                     appRes["SuccessFileTextBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    appRes["InputSelectionBrush"] = new SolidColorBrush(Color.FromRgb(0x45, 0x47, 0x5A));
+                    appRes["InputSelectionTextBrush"] = new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF8));
+                    appRes["ChipCheckedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2E, 0x33, 0x50));
+                    appRes["ChipCheckedForegroundBrush"] = new SolidColorBrush(Color.FromRgb(0xC8, 0xD8, 0xFF));
+                    appRes["AccentTitleBrush"] = new SolidColorBrush(Color.FromRgb(0xC4, 0xA8, 0xFF));
+                    appRes["SubtleButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x30));
+                    appRes["SecondaryActionBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x28));
+                    appRes["PrimaryButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x3B, 0x7A, 0xED));
+                    appRes["PrimaryButtonHoverBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x50, 0x90, 0xFF));
+                    appRes["PrimaryButtonPressedBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x2F, 0x66, 0xD4));
+                    appRes["DropZoneBorderBrush"] = new SolidColorBrush(Color.FromRgb(0x4A, 0x6F, 0xA8));
+                    appRes["PopupBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x28));
+                    appRes["FavoriteStarBrush"] = new SolidColorBrush(Color.FromRgb(0xF9, 0xE2, 0xAF));
+                    appRes["FavoriteStarMutedBrush"] = new SolidColorBrush(Color.FromRgb(0x6B, 0x6F, 0x85));
+                    appRes["DangerTextBrush"] = new SolidColorBrush(Color.FromRgb(0xF3, 0x8B, 0xA8));
+                    appRes["DangerBackgroundBrush"] = new SolidColorBrush(Color.FromArgb(0x18, 0xF3, 0x8B, 0xA8));
+                    appRes["DangerBorderBrush"] = new SolidColorBrush(Color.FromArgb(0x44, 0xF3, 0x8B, 0xA8));
+                    appRes["GroupHeaderBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x30));
+                    appRes["InUseBadgeBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(0x1A, 0x3D, 0x2E));
+                    appRes["InUseBadgeBorderBrush"] = new SolidColorBrush(Color.FromRgb(0x40, 0xA0, 0x2B));
+                    appRes["InUseBadgeTextBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    appRes["StatusSuccessBrush"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    appRes["StatusInfoBrush"] = new SolidColorBrush(Color.FromRgb(0x89, 0xB4, 0xFA));
+                    appRes["StatusWarningBrush"] = new SolidColorBrush(Color.FromRgb(0xF9, 0xE2, 0xAF));
+                    appRes["StatusErrorBrush"] = new SolidColorBrush(Color.FromRgb(0xF3, 0x8B, 0xA8));
+                    appRes["SuccessColor"] = new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1));
                 }
 
                 // Keep preview background in sync if it's following the theme
@@ -780,6 +887,9 @@ namespace CursorManager
                 .Concat(scanned)
                 .ToList();
 
+            foreach (var theme in _allThemes)
+                ThemeMetadataStore.ApplyTo(theme);
+
             int tempCount = _temporaryThemes.Count;
             TxtThemeCount.Text = tempCount > 0
                 ? $"{scanned.Count} 個主題 · {tempCount} 未存入庫"
@@ -791,10 +901,7 @@ namespace CursorManager
             {
                 var match = _allThemes.FirstOrDefault(t => t.FolderPath.Equals(selectFolderPath, StringComparison.OrdinalIgnoreCase));
                 if (match != null)
-                {
-                    LstThemes.SelectedItem = match;
-                    LstThemes.ScrollIntoView(match);
-                }
+                    SelectThemeItem(match);
             }
         }
 
@@ -817,18 +924,417 @@ namespace CursorManager
         private void FilterThemes()
         {
             string query = TxtSearch.Text.Trim();
-            if (string.IsNullOrEmpty(query))
+            IEnumerable<CharacterThemeItem> items = _allThemes;
+
+            switch (ThemeMetadataStore.FilterMode)
             {
-                LstThemes.ItemsSource = _allThemes;
+                case ThemeFilterMode.Favorites:
+                    items = items.Where(t => t.IsFavorite);
+                    break;
+                case ThemeFilterMode.Recent:
+                    var recent = ThemeMetadataStore.GetRecentPaths();
+                    items = items
+                        .Where(t => recent.Any(p => p.Equals(t.FolderPath, StringComparison.OrdinalIgnoreCase)))
+                        .OrderBy(t =>
+                        {
+                            int idx = recent.ToList().FindIndex(p => p.Equals(t.FolderPath, StringComparison.OrdinalIgnoreCase));
+                            return idx < 0 ? int.MaxValue : idx;
+                        });
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(query))
+            {
+                items = items.Where(t =>
+                    t.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    t.Group.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    t.GroupDisplay.Contains(query, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var themeList = items.ToList();
+            UpdateThemeListToolbarVisibility();
+
+            if (IsFlatThemeList)
+            {
+                _flatThemeList.Clear();
+                foreach (var theme in themeList)
+                    _flatThemeList.Add(theme);
+
+                BindThemeTreeView(_flatThemeList, flatList: true);
+                return;
+            }
+
+            _groupExpandedState = _themeGroups.ToDictionary(g => g.Name, g => g.IsExpanded);
+            _themeGroups.Clear();
+
+            IEnumerable<IGrouping<string, CharacterThemeItem>> grouped = themeList
+                .GroupBy(t => t.GroupDisplay)
+                .OrderBy(g => GetGroupSortOrder(g.Key))
+                .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var grp in grouped)
+            {
+                var node = new ThemeGroupNode
+                {
+                    Name = grp.Key,
+                    IsExpanded = _groupExpandedState.TryGetValue(grp.Key, out var expanded) ? expanded : true
+                };
+
+                foreach (var theme in SortThemes(grp))
+                    node.Themes.Add(theme);
+
+                if (node.Themes.Count > 0)
+                    _themeGroups.Add(node);
+            }
+
+            bool wasFlatList = _themeTreeShowsFlatList;
+            BindThemeTreeView(_themeGroups, flatList: false);
+
+            if (wasFlatList)
+                ExpandAllThemeGroups();
+            else if (!string.IsNullOrEmpty(query))
+                ExpandAllThemeGroups();
+            else if (_userCollapsedAllGroups)
+            {
+                foreach (var group in _themeGroups)
+                    group.IsExpanded = false;
+                ScheduleGroupExpansion();
             }
             else
+                ScheduleGroupExpansion();
+        }
+
+        private void BindThemeTreeView(System.Collections.IEnumerable source, bool flatList)
+        {
+            bool layoutChanged = _themeTreeShowsFlatList != flatList;
+            _themeTreeShowsFlatList = flatList;
+
+            if (layoutChanged || !ReferenceEquals(TrvThemes.ItemsSource, source))
             {
-                LstThemes.ItemsSource = _allThemes
-                    .Where(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                                t.Group.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                                t.GroupDisplay.Contains(query, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                TrvThemes.ItemsSource = null;
+                TrvThemes.ItemsSource = source;
+                return;
             }
+
+            if (!flatList)
+            {
+                TrvThemes.ItemsSource = null;
+                TrvThemes.ItemsSource = source;
+            }
+        }
+
+        private void ScheduleGroupExpansion()
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                ApplyGroupExpansionToTree();
+            }, DispatcherPriority.Loaded);
+        }
+
+        private void UpdateThemeListToolbarVisibility()
+        {
+            BtnCollapseAllGroups.Visibility = IsFlatThemeList ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void ExpandAllThemeGroups()
+        {
+            _userCollapsedAllGroups = false;
+
+            foreach (var group in _themeGroups)
+                group.IsExpanded = true;
+
+            ScheduleGroupExpansion();
+        }
+
+        private void CollapseAllThemeGroups()
+        {
+            _userCollapsedAllGroups = true;
+            _groupExpandedState = _themeGroups.ToDictionary(g => g.Name, _ => false);
+
+            foreach (var group in _themeGroups)
+                group.IsExpanded = false;
+
+            ScheduleGroupExpansion();
+        }
+
+        private void ApplyGroupExpansionToTree()
+        {
+            TrvThemes.UpdateLayout();
+            foreach (var group in _themeGroups)
+            {
+                if (TrvThemes.ItemContainerGenerator.ContainerFromItem(group) is TreeViewItem groupContainer)
+                    groupContainer.IsExpanded = group.IsExpanded;
+            }
+        }
+
+        private IEnumerable<CharacterThemeItem> GetVisibleThemes()
+        {
+            return IsFlatThemeList ? _flatThemeList : _themeGroups.SelectMany(g => g.Themes);
+        }
+
+        private void SetBatchDeleteMode(bool enabled)
+        {
+            IsBatchDeleteMode = enabled;
+
+            if (!enabled)
+            {
+                foreach (var theme in _allThemes)
+                    theme.IsSelectedForBatch = false;
+            }
+
+            UpdateBatchDeleteSelectionUi();
+        }
+
+        private void UpdateBatchDeleteSelectionUi()
+        {
+            int count = GetVisibleThemes().Count(t => t.IsSelectedForBatch);
+            BtnDeleteSelectedThemes.Content = $"刪除所選 ({count})";
+            BtnDeleteSelectedThemes.IsEnabled = count > 0;
+        }
+
+        private void BtnCollapseAllGroups_Click(object sender, RoutedEventArgs e)
+        {
+            CollapseAllThemeGroups();
+        }
+
+        private void BtnBatchDelete_Click(object sender, RoutedEventArgs e)
+        {
+            SetBatchDeleteMode(true);
+            ExpandAllThemeGroups();
+        }
+
+        private void BtnCancelBatchDelete_Click(object sender, RoutedEventArgs e)
+        {
+            SetBatchDeleteMode(false);
+        }
+
+        private void BtnBatchSelectAll_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var theme in GetVisibleThemes())
+                theme.IsSelectedForBatch = true;
+
+            RefreshGroupBatchCheckStates();
+            UpdateBatchDeleteSelectionUi();
+        }
+
+        private void BtnBatchSelectNone_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var theme in GetVisibleThemes())
+                theme.IsSelectedForBatch = false;
+
+            RefreshGroupBatchCheckStates();
+            UpdateBatchDeleteSelectionUi();
+        }
+
+        private void RefreshGroupBatchCheckStates()
+        {
+            foreach (var group in _themeGroups)
+                group.RefreshGroupBatchChecked();
+        }
+
+        private void BatchCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            RefreshGroupBatchCheckStates();
+            UpdateBatchDeleteSelectionUi();
+        }
+
+        private void GroupBatchCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox { DataContext: ThemeGroupNode group })
+            {
+                bool selectAll = group.IsGroupBatchChecked == true;
+                foreach (var theme in group.Themes)
+                    theme.IsSelectedForBatch = selectAll;
+                group.RefreshGroupBatchChecked();
+            }
+
+            UpdateBatchDeleteSelectionUi();
+        }
+
+        private void BtnDeleteSelectedThemes_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = GetVisibleThemes().Where(t => t.IsSelectedForBatch).ToList();
+            if (selected.Count == 0)
+                return;
+
+            int libraryCount = selected.Count(t => !t.IsTemporary);
+            int temporaryCount = selected.Count - libraryCount;
+            string summary = libraryCount > 0 && temporaryCount > 0
+                ? $"將永久刪除 {libraryCount} 個主題，並從列表移除 {temporaryCount} 個未存入庫項目。"
+                : libraryCount > 0
+                    ? $"將永久刪除 {libraryCount} 個主題資料夾。"
+                    : $"將從列表移除 {temporaryCount} 個未存入庫項目，不會刪除原始資料夾。";
+
+            var confirm = ConfirmDialog.Show(this, new ConfirmDialogOptions
+            {
+                Title = "批量刪除確認",
+                Headline = $"確定要刪除所選的 {selected.Count} 個主題嗎？",
+                Message = summary,
+                PathLabel = "所選主題",
+                PathHighlight = string.Join(Environment.NewLine, selected.Select(t => $"• {t.Name}")),
+                Buttons = ConfirmDialogButtons.YesNo,
+                Kind = ConfirmDialogKind.Warning
+            });
+
+            if (confirm != ConfirmDialogResult.Yes)
+                return;
+
+            DeleteThemeItems(selected);
+            SetBatchDeleteMode(false);
+        }
+
+        private static int GetGroupSortOrder(string groupName) => groupName switch
+        {
+            ThemeGroupNames.Temporary => 0,
+            ThemeGroupNames.Ungrouped => 1,
+            ThemeGroupNames.LegacyRoot => 1,
+            _ => 2
+        };
+
+        private static IEnumerable<CharacterThemeItem> SortThemes(IEnumerable<CharacterThemeItem> items)
+        {
+            return ThemeMetadataStore.SortMode switch
+            {
+                ThemeSortMode.Date => items.OrderByDescending(t => t.FolderModifiedUtc ?? DateTime.MinValue).ThenBy(t => t.Name),
+                ThemeSortMode.Recent => items.OrderByDescending(t => t.LastUsedUtc ?? DateTime.MinValue).ThenBy(t => t.Name),
+                _ => items.OrderBy(t => t.Name)
+            };
+        }
+
+        private void ThemeFilter_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ToggleButton clicked)
+                return;
+
+            ThemeFilterMode mode = clicked.Name switch
+            {
+                nameof(BtnFilterFavorites) => ThemeFilterMode.Favorites,
+                nameof(BtnFilterRecent) => ThemeFilterMode.Recent,
+                _ => ThemeFilterMode.All
+            };
+
+            ApplyThemeFilterMode(mode);
+        }
+
+        private void ApplyThemeFilterMode(ThemeFilterMode mode)
+        {
+            _suppressThemeFilterEvent = true;
+            try
+            {
+                BtnFilterAll.IsChecked = mode == ThemeFilterMode.All;
+                BtnFilterFavorites.IsChecked = mode == ThemeFilterMode.Favorites;
+                BtnFilterRecent.IsChecked = mode == ThemeFilterMode.Recent;
+            }
+            finally
+            {
+                _suppressThemeFilterEvent = false;
+            }
+
+            ThemeMetadataStore.SetFilterMode(mode);
+
+            if (!IsFlatThemeList)
+                _userCollapsedAllGroups = false;
+
+            FilterThemes();
+        }
+
+        private void CmbThemeSort_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressThemeFilterEvent || CmbThemeSort.SelectedItem is not ComboBoxItem item)
+                return;
+
+            if (item.Tag is string tag && Enum.TryParse<ThemeSortMode>(tag, true, out var mode))
+            {
+                ThemeMetadataStore.SetSortMode(mode);
+                FilterThemes();
+            }
+        }
+
+        private void SelectThemeItem(CharacterThemeItem item, bool scrollIntoView = true)
+        {
+            if (!IsFlatThemeList)
+            {
+                foreach (var group in _themeGroups)
+                {
+                    if (group.Themes.Contains(item))
+                    {
+                        group.IsExpanded = true;
+                        break;
+                    }
+                }
+            }
+
+            TrvThemes.UpdateLayout();
+            if (scrollIntoView)
+                ScrollThemeIntoView(item);
+            else
+                SetThemeItemSelected(item);
+            LoadFolder(item.FolderPath, item.Name);
+        }
+
+        private void SetThemeItemSelected(CharacterThemeItem item)
+        {
+            if (IsFlatThemeList)
+            {
+                if (TrvThemes.ItemContainerGenerator.ContainerFromItem(item) is TreeViewItem flatContainer)
+                {
+                    flatContainer.IsSelected = true;
+                    flatContainer.Focus();
+                }
+
+                return;
+            }
+
+            foreach (var group in _themeGroups)
+            {
+                var groupContainer = TrvThemes.ItemContainerGenerator.ContainerFromItem(group) as TreeViewItem;
+                if (groupContainer == null)
+                    continue;
+
+                groupContainer.IsExpanded = true;
+                groupContainer.UpdateLayout();
+
+                var themeContainer = groupContainer.ItemContainerGenerator.ContainerFromItem(item) as TreeViewItem;
+                if (themeContainer != null)
+                {
+                    themeContainer.IsSelected = true;
+                    themeContainer.Focus();
+                    return;
+                }
+            }
+        }
+
+        private void ScrollThemeIntoView(CharacterThemeItem item)
+        {
+            SetThemeItemSelected(item);
+
+            if (IsFlatThemeList)
+            {
+                if (TrvThemes.ItemContainerGenerator.ContainerFromItem(item) is TreeViewItem flatContainer)
+                    flatContainer.BringIntoView();
+                return;
+            }
+
+            foreach (var group in _themeGroups)
+            {
+                var groupContainer = TrvThemes.ItemContainerGenerator.ContainerFromItem(group) as TreeViewItem;
+                if (groupContainer == null)
+                    continue;
+
+                var themeContainer = groupContainer.ItemContainerGenerator.ContainerFromItem(item) as TreeViewItem;
+                if (themeContainer != null)
+                {
+                    themeContainer.BringIntoView();
+                    return;
+                }
+            }
+        }
+
+        private void SelectFirstThemeIfAny()
+        {
+            var first = GetVisibleThemes().FirstOrDefault() ?? _allThemes.FirstOrDefault();
+            if (first != null)
+                SelectThemeItem(first);
         }
 
         private void RememberTemporaryTheme(string folderPath)
@@ -863,14 +1369,14 @@ namespace CursorManager
         private async void BtnRefreshThemes_Click(object sender, RoutedEventArgs e)
         {
             // Preserve the selection so manually refreshing the library does not interrupt browsing.
-            string? selectedFolderPath = (LstThemes.SelectedItem as CharacterThemeItem)?.FolderPath
+            string? selectedFolderPath = (TrvThemes.SelectedItem as CharacterThemeItem)?.FolderPath
                 ?? (!string.IsNullOrEmpty(_currentLoadedFolder) ? _currentLoadedFolder : null);
 
             BtnRefreshThemes.IsEnabled = false;
             try
             {
                 await ReloadThemesAsync(selectedFolderPath);
-                SetStatus("↻", "鼠標庫已重新整理", Color.FromRgb(0x89, 0xB4, 0xFA));
+                SetStatus("↻", "鼠標庫已重新整理", StatusTone.Info);
             }
             finally
             {
@@ -883,12 +1389,10 @@ namespace CursorManager
             FilterThemes();
         }
 
-        private void LstThemes_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void TrvThemes_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            if (LstThemes.SelectedItem is CharacterThemeItem item)
-            {
+            if (TrvThemes.SelectedItem is CharacterThemeItem item)
                 LoadFolder(item.FolderPath, item.Name);
-            }
         }
 
         private void ImportAndLoadFolder(string folderPath)
@@ -971,11 +1475,10 @@ namespace CursorManager
 
             // Reload sidebar list and select the theme
             ReloadThemes(targetDir);
-            LoadFolder(targetDir);
-            TryApplyCurrentTheme(silent: true);
+            LoadFolder(targetDir, applyWhenReady: true);
         }
 
-        public void LoadFolder(string folderPath, string? themeName = null)
+        public void LoadFolder(string folderPath, string? themeName = null, bool applyWhenReady = false)
         {
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
                 return;
@@ -987,16 +1490,50 @@ namespace CursorManager
             TxtCurrentThemeTitle.Text = _currentThemeName;
             TxtCurrentFolderPath.Text = folderPath;
 
-            CursorIconHelper.ClearCache();
-            var slots = CursorMatcher.MatchFolder(folderPath);
-            _currentSlots.Clear();
-            foreach (var s in slots)
+            int token = ++_loadFolderToken;
+            _ = LoadFolderAsync(folderPath, token, applyWhenReady);
+        }
+
+        private async Task LoadFolderAsync(string folderPath, int token, bool applyWhenReady)
+        {
+            List<CursorSlot> slots;
+            try
             {
-                _currentSlots.Add(s);
+                slots = await Task.Run(() => CursorMatcher.MatchFolder(folderPath, loadAniSequences: false));
+            }
+            catch
+            {
+                return;
             }
 
-            int matchedCount = _currentSlots.Count(s => s.HasFile);
-            SetStatus("💡", $"已配對 {matchedCount} / {_currentSlots.Count} 項鼠標。點擊「套用」即可立即生效！", Color.FromRgb(0x89, 0xB4, 0xFA));
+            if (token != _loadFolderToken)
+                return;
+
+            _currentSlots.Clear();
+            foreach (var slot in slots)
+                _currentSlots.Add(slot);
+
+            int matchedCount = _currentSlots.Count(s => !s.IsExtra && s.HasFile);
+            int extraCount = _currentSlots.Count(s => s.IsExtra);
+            string extraNote = extraCount > 0 ? $"（另有 {extraCount} 個額外檔案，不會套用）" : "";
+            SetStatus("💡", $"已配對 {matchedCount} / {WindowsCursorSlots.StandardCount} 項鼠標{extraNote}。點擊「套用」即可立即生效！", StatusTone.Info);
+
+            if (applyWhenReady && token == _loadFolderToken)
+                TryApplyCurrentTheme(silent: true);
+
+            try
+            {
+                await Task.Run(() => CursorMatcher.LoadSlotAniSequences(slots));
+            }
+            catch
+            {
+                return;
+            }
+
+            if (token != _loadFolderToken)
+                return;
+
+            CursorMatcher.ApplyAniPreviewFrames(slots);
         }
 
         private void Window_DragOver(object sender, DragEventArgs e)
@@ -1141,14 +1678,7 @@ namespace CursorManager
                             themeName = regTheme;
                         }
 
-                        string[] standardKeys = new[]
-                        {
-                            "Arrow", "Help", "AppStarting", "Wait", "Crosshair", "IBeam",
-                            "NWPen", "No", "SizeNS", "SizeWE", "SizeNWSE", "SizeNESW",
-                            "SizeAll", "UpArrow", "Hand"
-                        };
-
-                        foreach (var k in standardKeys)
+                        foreach (var k in WindowsCursorSlots.RegistryKeyOrder)
                         {
                             var p = key.GetValue(k)?.ToString();
                             if (!string.IsNullOrEmpty(p))
@@ -1221,7 +1751,7 @@ namespace CursorManager
                 _schemePromptDismissed = true;
                 PersistAppSettings();
                 RefreshInUseBadges();
-                SetStatus("✨", $"已成功將「{themeName}」鼠標主題存入鼠標庫！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                SetStatus("✨", $"已成功將「{themeName}」鼠標主題存入鼠標庫！", StatusTone.Success);
                 ConfirmDialog.Alert(this, "匯入成功",
                     $"已成功將「{themeName}」鼠標提取並儲存至鼠標庫！",
                     "您往後隨時可以在左側清單切換回此鼠標。",
@@ -1254,9 +1784,41 @@ namespace CursorManager
             }
         }
 
+        private void BtnOpenCurrentFolder_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentLoadedFolder) || !Directory.Exists(_currentLoadedFolder))
+            {
+                ConfirmDialog.Alert(this, "提示", "尚未載入任何主題資料夾。", kind: ConfirmDialogKind.Warning);
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = _currentLoadedFolder,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                ConfirmDialog.Alert(this, "錯誤", "無法開啟資料夾：" + ex.Message, kind: ConfirmDialogKind.Error);
+            }
+        }
+
         private void BtnApplyTheme_Click(object sender, RoutedEventArgs e)
         {
             TryApplyCurrentTheme(silent: false);
+        }
+
+        private bool SlotsMatchLoadedFolder()
+        {
+            if (string.IsNullOrEmpty(_currentLoadedFolder))
+                return false;
+
+            return _currentSlots.Any(s =>
+                s.HasFile &&
+                s.FilePath.StartsWith(_currentLoadedFolder, StringComparison.OrdinalIgnoreCase));
         }
 
         private void TryApplyCurrentTheme(bool silent)
@@ -1265,21 +1827,27 @@ namespace CursorManager
             {
                 if (!silent)
                 {
-                    SetStatus("⚠️", "請先選擇包含鼠標檔案的資料夾！", Color.FromRgb(0xF9, 0xE2, 0xAF));
+                    SetStatus("⚠️", "請先選擇包含鼠標檔案的資料夾！", StatusTone.Warning);
                     ConfirmDialog.Alert(this, "提示", "請先選擇或拖曳包含鼠標檔案的資料夾！");
                 }
                 return;
             }
+
+            if (!SlotsMatchLoadedFolder())
+                return;
 
             try
             {
                 CursorInstaller.ApplyCursors(_currentSlots, _currentThemeName, _cursorSizePx, _cursorScaleMode);
                 _appliedFolderPath = _currentLoadedFolder;
                 _appliedThemeName = _currentThemeName;
+                ThemeMetadataStore.RecordApplied(_appliedFolderPath);
                 PersistAppSettings();
                 RefreshInUseBadges();
-                _schemePromptDismissed = false;
-                SetStatus("✅", $"套用成功！已即時切換為「{_currentThemeName}」鼠標主題！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                _schemePromptDismissed = true;
+                _skipSchemeMismatchCheck = true;
+                Dispatcher.BeginInvoke(() => _skipSchemeMismatchCheck = false, DispatcherPriority.ApplicationIdle);
+                SetStatus("✅", $"套用成功！已即時切換為「{_currentThemeName}」鼠標主題！", StatusTone.Success);
                 if (!silent)
                 {
                     ConfirmDialog.Alert(this, "套用成功",
@@ -1290,23 +1858,36 @@ namespace CursorManager
             }
             catch (Exception ex)
             {
-                SetStatus("❌", "套用失敗：" + ex.Message, Color.FromRgb(0xF3, 0x8B, 0xA8));
+                SetStatus("❌", "套用失敗：" + ex.Message, StatusTone.Error);
                 ConfirmDialog.Alert(this, "錯誤", "套用失敗：" + ex.Message, kind: ConfirmDialogKind.Error);
             }
         }
 
         private void ThemeItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not ListBoxItem listBoxItem)
+            if (sender is not TreeViewItem listBoxItem)
                 return;
 
-            listBoxItem.IsSelected = true;
+            if (listBoxItem.DataContext is not CharacterThemeItem item)
+                return;
+
+            SelectThemeItem(item, scrollIntoView: false);
             listBoxItem.Focus();
 
-            bool isTemporary = listBoxItem.DataContext is CharacterThemeItem { IsTemporary: true };
+            bool isTemporary = item.IsTemporary;
             string menuKey = isTemporary ? "SessionThemeContextMenu" : "LibraryThemeContextMenu";
             if (TryFindResource(menuKey) is ContextMenu menu)
             {
+                if (listBoxItem.DataContext is CharacterThemeItem theme)
+                {
+                    string favHeader = theme.IsFavorite ? "☆ 移除收藏" : "⭐ 加入收藏";
+                    foreach (var child in menu.Items)
+                    {
+                        if (child is MenuItem mi && (mi.Name == "MenuToggleFavorite" || mi.Name == "MenuToggleFavoriteSession"))
+                            mi.Header = favHeader;
+                    }
+                }
+
                 listBoxItem.ContextMenu = menu;
                 menu.PlacementTarget = listBoxItem;
                 menu.DataContext = listBoxItem.DataContext;
@@ -1315,17 +1896,212 @@ namespace CursorManager
             }
         }
 
+        private void ThemeTreeItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not TreeViewItem treeViewItem)
+                return;
+
+            if (e.OriginalSource is not DependencyObject source)
+                return;
+
+            if (IsDescendantOfInteractiveControl(source))
+                return;
+
+            if (treeViewItem.DataContext is CharacterThemeItem theme)
+            {
+                treeViewItem.IsSelected = true;
+                treeViewItem.Focus();
+                LoadFolder(theme.FolderPath, theme.Name);
+                e.Handled = true;
+                return;
+            }
+
+            if (treeViewItem.DataContext is not ThemeGroupNode group)
+                return;
+
+            // Preview tunnels top-down; ignore clicks that belong to nested theme rows.
+            if (FindTreeViewItemAncestor(source) is TreeViewItem clickedItem && clickedItem != treeViewItem)
+                return;
+
+            bool next = !treeViewItem.IsExpanded;
+            treeViewItem.IsExpanded = next;
+            group.IsExpanded = next;
+            _userCollapsedAllGroups = false;
+            _groupExpandedState[group.Name] = next;
+            e.Handled = true;
+        }
+
+        private static TreeViewItem? FindTreeViewItemAncestor(DependencyObject source)
+        {
+            while (source != null)
+            {
+                if (source is TreeViewItem item)
+                    return item;
+
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return null;
+        }
+
+        private static bool IsDescendantOfInteractiveControl(DependencyObject source)
+        {
+            while (source != null)
+            {
+                if (source is ToggleButton or CheckBox)
+                    return true;
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return false;
+        }
+
+        private void MenuToggleFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetThemeItemFromMenuSender(sender) is not CharacterThemeItem item)
+                return;
+
+            bool next = !item.IsFavorite;
+            ThemeMetadataStore.SetFavorite(item.FolderPath, next);
+            item.IsFavorite = next;
+            FilterThemes();
+            SetStatus(next ? "★" : "☆", next ? $"已將「{item.Name}」加入收藏" : $"已將「{item.Name}」移除收藏",
+                StatusTone.Warning);
+        }
+
+        private void MenuSetCustomGroup_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetThemeItemFromMenuSender(sender) is not CharacterThemeItem item)
+                return;
+
+            string currentGroup = ThemeGroupNames.IsRootLevel(item.Group) ? string.Empty : item.Group;
+            var dlg = new TextInputDialog(
+                "指定群組",
+                "輸入群組名稱，主題資料夾將移至「鼠標庫\\群組名\\主題名」。\n留空則移至鼠標庫根目錄。",
+                currentGroup,
+                allowEmpty: true)
+            {
+                Owner = this
+            };
+            if (dlg.ShowDialog() != true)
+                return;
+
+            string groupName = dlg.Value.Trim();
+            if (!IsValidFolderName(groupName))
+            {
+                ConfirmDialog.Alert(this, "提示", "群組名稱含有不合法字元。", kind: ConfirmDialogKind.Warning);
+                return;
+            }
+
+            if (!TryRelocateThemeToGroup(item, groupName, out string newPath, out string? errorMessage))
+            {
+                if (!string.IsNullOrEmpty(errorMessage))
+                    ConfirmDialog.Alert(this, "錯誤", $"移動主題失敗：{errorMessage}", kind: ConfirmDialogKind.Error);
+                return;
+            }
+
+            ReloadThemes(newPath);
+            LoadFolder(newPath, item.Name);
+            SetStatus("📁", string.IsNullOrEmpty(groupName)
+                ? $"已將「{item.Name}」移至鼠標庫根目錄"
+                : $"已將「{item.Name}」移至群組「{groupName}」",
+                StatusTone.Success);
+        }
+
+        private static bool IsValidFolderName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return true;
+            return name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+        }
+
+        private bool TryRelocateThemeToGroup(CharacterThemeItem item, string groupName, out string newPath, out string? errorMessage)
+        {
+            newPath = item.FolderPath;
+            errorMessage = null;
+
+            string cursorsData = GetCursorsDataFolder();
+            string themeFolderName = Path.GetFileName(item.FolderPath.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(themeFolderName))
+            {
+                errorMessage = "無法辨識主題資料夾名稱。";
+                return false;
+            }
+
+            string targetDir = string.IsNullOrEmpty(groupName)
+                ? Path.Combine(cursorsData, themeFolderName)
+                : Path.Combine(cursorsData, groupName, themeFolderName);
+
+            string currentDir = Path.GetFullPath(item.FolderPath.TrimEnd('\\', '/'));
+            string targetFull = Path.GetFullPath(targetDir);
+
+            if (currentDir.Equals(targetFull, StringComparison.OrdinalIgnoreCase))
+            {
+                newPath = currentDir;
+                return true;
+            }
+
+            try
+            {
+                if (Directory.Exists(targetFull))
+                {
+                    var overwrite = ConfirmDialog.Show(this, new ConfirmDialogOptions
+                    {
+                        Title = "確認覆蓋",
+                        Headline = $"目標位置已有同名資料夾「{themeFolderName}」。",
+                        Message = "要覆蓋嗎？",
+                        Buttons = ConfirmDialogButtons.YesNo,
+                        Kind = ConfirmDialogKind.Question
+                    });
+                    if (overwrite != ConfirmDialogResult.Yes)
+                        return false;
+                    Directory.Delete(targetFull, true);
+                }
+
+                if (!string.IsNullOrEmpty(groupName))
+                    Directory.CreateDirectory(Path.Combine(cursorsData, groupName));
+
+                bool isOutsideLibrary = !currentDir.StartsWith(Path.GetFullPath(cursorsData), StringComparison.OrdinalIgnoreCase);
+                if (item.IsTemporary || isOutsideLibrary)
+                {
+                    CopyDirectory(item.FolderPath, targetFull);
+                    if (item.IsTemporary)
+                        ForgetTemporaryTheme(item.FolderPath);
+                }
+                else
+                {
+                    Directory.Move(currentDir, targetFull);
+                }
+
+                string oldPath = item.FolderPath;
+                newPath = targetFull;
+                ThemeMetadataStore.RenamePath(oldPath, newPath);
+
+                if (string.Equals(_appliedFolderPath, oldPath, StringComparison.OrdinalIgnoreCase))
+                    _appliedFolderPath = newPath;
+                if (string.Equals(_currentLoadedFolder, oldPath, StringComparison.OrdinalIgnoreCase))
+                    _currentLoadedFolder = newPath;
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+        }
+
         private CharacterThemeItem? GetThemeItemFromMenuSender(object sender)
         {
             if (sender is MenuItem { Parent: ContextMenu contextMenu })
             {
-                if (contextMenu.PlacementTarget is ListBoxItem { DataContext: CharacterThemeItem item })
+                if (contextMenu.PlacementTarget is TreeViewItem { DataContext: CharacterThemeItem item })
                     return item;
                 if (contextMenu.DataContext is CharacterThemeItem ctxItem)
                     return ctxItem;
             }
 
-            return LstThemes.SelectedItem as CharacterThemeItem;
+            return TrvThemes.SelectedItem as CharacterThemeItem;
         }
 
         private void BtnRestoreDefault_Click(object sender, RoutedEventArgs e)
@@ -1346,14 +2122,14 @@ namespace CursorManager
                     _appliedThemeName = string.Empty;
                     PersistAppSettings();
                     RefreshInUseBadges();
-                    SetStatus("🔄", "已成功還原為預設鼠標", Color.FromRgb(0x89, 0xB4, 0xFA));
+                    SetStatus("🔄", "已成功還原為預設鼠標", StatusTone.Info);
                     ConfirmDialog.Alert(this, "還原成功", "已成功還原為預設鼠標",
                         $"鼠標大小設定仍保留為 {MousePointerSizeHelper.GetPxLabel(_cursorSizePx)}。",
                         ConfirmDialogKind.Success);
                 }
                 else
                 {
-                    SetStatus("❌", "還原失敗。", Color.FromRgb(0xF3, 0x8B, 0xA8));
+                    SetStatus("❌", "還原失敗。", StatusTone.Error);
                 }
             }
         }
@@ -1407,7 +2183,7 @@ namespace CursorManager
                         TxtCurrentThemeTitle.Text = newName;
                     }
                     FilterThemes();
-                    SetStatus("✏️", $"已將顯示名稱改為「{newName}」（原資料夾未更動）", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    SetStatus("✏️", $"已將顯示名稱改為「{newName}」（原資料夾未更動）", StatusTone.Success);
                 }
                 return;
             }
@@ -1442,10 +2218,11 @@ namespace CursorManager
                     if (string.Equals(_appliedFolderPath, oldPath, StringComparison.OrdinalIgnoreCase))
                         _appliedFolderPath = newPath;
 
+                    ThemeMetadataStore.RenamePath(oldPath, newPath);
                     ReloadThemes(newPath);
                     LoadFolder(newPath, newName);
 
-                    SetStatus("✏️", $"已成功重新命名為「{newName}」！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    SetStatus("✏️", $"已成功重新命名為「{newName}」！", StatusTone.Success);
                 }
                 catch (Exception ex)
                 {
@@ -1492,7 +2269,7 @@ namespace CursorManager
                     _appliedFolderPath = targetDir;
                 ReloadThemes(targetDir);
                 LoadFolder(targetDir, item.Name);
-                SetStatus("📦", $"已將「{item.Name}」存入鼠標庫！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                SetStatus("📦", $"已將「{item.Name}」存入鼠標庫！", StatusTone.Success);
             }
             catch (Exception ex)
             {
@@ -1524,6 +2301,55 @@ namespace CursorManager
             if (GetThemeItemFromMenuSender(sender) is not CharacterThemeItem item)
                 return;
 
+            DeleteThemeItems(new[] { item });
+        }
+
+        private void DeleteThemeItems(IReadOnlyList<CharacterThemeItem> items)
+        {
+            if (items.Count == 0)
+                return;
+
+            if (items.Count == 1)
+            {
+                DeleteSingleThemeItem(items[0]);
+                return;
+            }
+
+            int deleted = 0;
+            var failures = new List<string>();
+            string? keepCurrent = items.Any(t => string.Equals(_currentLoadedFolder, t.FolderPath, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : _currentLoadedFolder;
+
+            foreach (var item in items)
+            {
+                if (TryDeleteThemeItem(item, out string? error))
+                    deleted++;
+                else if (!string.IsNullOrEmpty(error))
+                    failures.Add($"{item.Name}: {error}");
+            }
+
+            ReloadThemes(keepCurrent);
+
+            if (keepCurrent == null)
+                RestoreEmptyThemeViewIfNeeded();
+
+            if (failures.Count > 0)
+            {
+                ConfirmDialog.Alert(this, "部分刪除失敗",
+                    string.Join(Environment.NewLine, failures.Take(5)) +
+                    (failures.Count > 5 ? Environment.NewLine + "..." : string.Empty),
+                    kind: ConfirmDialogKind.Warning);
+            }
+
+            SetStatus("🗑️", failures.Count == 0
+                ? $"已成功刪除 {deleted} 個主題"
+                : $"已刪除 {deleted} 個主題，{failures.Count} 個失敗",
+                failures.Count == 0 ? StatusTone.Success : StatusTone.Error);
+        }
+
+        private void DeleteSingleThemeItem(CharacterThemeItem item)
+        {
             if (item.IsTemporary)
             {
                 var removeAsk = ConfirmDialog.Show(this, new ConfirmDialogOptions
@@ -1539,87 +2365,91 @@ namespace CursorManager
 
                 if (removeAsk != ConfirmDialogResult.Yes)
                     return;
-
-                ForgetTemporaryTheme(item.FolderPath);
-                if (string.Equals(_appliedFolderPath, item.FolderPath, StringComparison.OrdinalIgnoreCase))
-                    _appliedFolderPath = string.Empty;
-                string? keepCurrent = string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase)
-                    ? null
-                    : _currentLoadedFolder;
-                ReloadThemes(keepCurrent);
-
-                if (keepCurrent == null)
+            }
+            else
+            {
+                var result = ConfirmDialog.Show(this, new ConfirmDialogOptions
                 {
-                    if (_allThemes.Count > 0)
-                    {
-                        LstThemes.SelectedIndex = 0;
-                    }
-                    else
-                    {
-                        _currentLoadedFolder = string.Empty;
-                        _currentThemeName = "未選擇任何主題";
-                        TxtCurrentThemeTitle.Text = _currentThemeName;
-                        TxtCurrentFolderPath.Text = "請從左側選擇或將資料夾拖曳進來";
-                        var slots = CursorMatcher.CreateDefaultSlots();
-                        _currentSlots.Clear();
-                        foreach (var s in slots) _currentSlots.Add(s);
-                    }
-                }
+                    Title = "刪除主題確認",
+                    Headline = $"確定要永久刪除主題「{item.Name}」嗎？",
+                    Message = "這將會移除該鼠標資料夾。",
+                    PathLabel = "將刪除",
+                    PathHighlight = item.FolderPath,
+                    Buttons = ConfirmDialogButtons.YesNo,
+                    Kind = ConfirmDialogKind.Warning
+                });
 
-                SetStatus("🗑️", $"已從列表移除「{item.Name}」", Color.FromRgb(0xF9, 0xE2, 0xAF));
+                if (result != ConfirmDialogResult.Yes)
+                    return;
+            }
+
+            if (!TryDeleteThemeItem(item, out string? error))
+            {
+                if (!string.IsNullOrEmpty(error))
+                    ConfirmDialog.Alert(this, "錯誤", error, kind: ConfirmDialogKind.Error);
                 return;
             }
 
-            var result = ConfirmDialog.Show(this, new ConfirmDialogOptions
-            {
-                Title = "刪除主題確認",
-                Headline = $"確定要永久刪除主題「{item.Name}」嗎？",
-                Message = "這將會移除該鼠標資料夾。",
-                PathLabel = "將刪除",
-                PathHighlight = item.FolderPath,
-                Buttons = ConfirmDialogButtons.YesNo,
-                Kind = ConfirmDialogKind.Warning
-            });
+            string? keepCurrent = string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : _currentLoadedFolder;
+            ReloadThemes(keepCurrent);
 
-            if (result == ConfirmDialogResult.Yes)
+            if (keepCurrent == null)
+                RestoreEmptyThemeViewIfNeeded();
+
+            SetStatus("🗑️", item.IsTemporary
+                ? $"已從列表移除「{item.Name}」"
+                : $"已成功刪除「{item.Name}」！",
+                item.IsTemporary ? StatusTone.Warning : StatusTone.Success);
+        }
+
+        private bool TryDeleteThemeItem(CharacterThemeItem item, out string? errorMessage)
+        {
+            errorMessage = null;
+
+            try
             {
-                try
+                if (item.IsTemporary)
                 {
-                    if (Directory.Exists(item.FolderPath))
-                    {
-                        Directory.Delete(item.FolderPath, true);
-                    }
-
+                    ForgetTemporaryTheme(item.FolderPath);
                     if (string.Equals(_appliedFolderPath, item.FolderPath, StringComparison.OrdinalIgnoreCase))
                         _appliedFolderPath = string.Empty;
-
-                    ReloadThemes();
-
-                    if (string.Equals(_currentLoadedFolder, item.FolderPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (_allThemes.Count > 0)
-                        {
-                            LstThemes.SelectedIndex = 0;
-                        }
-                        else
-                        {
-                            _currentLoadedFolder = string.Empty;
-                            _currentThemeName = "未選擇任何主題";
-                            TxtCurrentThemeTitle.Text = _currentThemeName;
-                            TxtCurrentFolderPath.Text = "請從左側選擇或將資料夾拖曳進來";
-                            var slots = CursorMatcher.CreateDefaultSlots();
-                            _currentSlots.Clear();
-                            foreach (var s in slots) _currentSlots.Add(s);
-                        }
-                    }
-
-                    SetStatus("🗑️", $"已成功刪除「{item.Name}」！", Color.FromRgb(0xF3, 0x8B, 0xA8));
+                    return true;
                 }
-                catch (Exception ex)
-                {
-                    ConfirmDialog.Alert(this, "錯誤", $"刪除失敗：{ex.Message}", kind: ConfirmDialogKind.Error);
-                }
+
+                if (Directory.Exists(item.FolderPath))
+                    Directory.Delete(item.FolderPath, true);
+
+                if (string.Equals(_appliedFolderPath, item.FolderPath, StringComparison.OrdinalIgnoreCase))
+                    _appliedFolderPath = string.Empty;
+
+                ThemeMetadataStore.RemovePath(item.FolderPath);
+                return true;
             }
+            catch (Exception ex)
+            {
+                errorMessage = $"刪除失敗：{ex.Message}";
+                return false;
+            }
+        }
+
+        private void RestoreEmptyThemeViewIfNeeded()
+        {
+            if (_allThemes.Count > 0)
+            {
+                SelectFirstThemeIfAny();
+                return;
+            }
+
+            _currentLoadedFolder = string.Empty;
+            _currentThemeName = "未選擇任何主題";
+            TxtCurrentThemeTitle.Text = _currentThemeName;
+            TxtCurrentFolderPath.Text = "請從左側選擇或將資料夾拖曳進來";
+            var slots = CursorMatcher.CreateDefaultSlots();
+            _currentSlots.Clear();
+            foreach (var s in slots)
+                _currentSlots.Add(s);
         }
 
         private void OpenSettings_Click(object sender, RoutedEventArgs e)
@@ -1671,7 +2501,7 @@ namespace CursorManager
                 if (pathChanged)
                 {
                     ReloadThemes();
-                    SetStatus("⚙️", $"設定已儲存，資料夾位置更新為：{newPath}", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    SetStatus("⚙️", $"設定已儲存，資料夾位置更新為：{newPath}", StatusTone.Success);
                     string themeDisplay = newTheme == "Light" ? "淺色" : (newTheme == "Dark" ? "深色" : "跟隨系統");
                     string bgDisplay = newBg switch
                     {
@@ -1688,7 +2518,7 @@ namespace CursorManager
                 }
                 else
                 {
-                    SetStatus("⚙️", "設定已儲存！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                    SetStatus("⚙️", "設定已儲存！", StatusTone.Success);
                 }
             }
             else
@@ -1705,11 +2535,27 @@ namespace CursorManager
             ImportCurrentSystemCursors("擷取的自訂鼠標");
         }
 
-        private void SetStatus(string icon, string msg, Color color)
+        private enum StatusTone
         {
-            TxtStatusIcon.Text = icon;
-            TxtStatusMessage.Text = msg;
-            TxtStatusMessage.Foreground = new SolidColorBrush(color);
+            Normal,
+            Success,
+            Info,
+            Warning,
+            Error
+        }
+
+        private void SetStatus(string icon, string msg, StatusTone tone = StatusTone.Normal)
+        {
+            TxtStatusMessage.Text = string.IsNullOrWhiteSpace(icon) ? msg : $"{icon} {msg}";
+            string brushKey = tone switch
+            {
+                StatusTone.Success => "StatusSuccessBrush",
+                StatusTone.Info => "StatusInfoBrush",
+                StatusTone.Warning => "StatusWarningBrush",
+                StatusTone.Error => "StatusErrorBrush",
+                _ => "TextSecondaryBrush"
+            };
+            TxtStatusMessage.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
         }
 
         private void AniTimer_Tick(object? sender, EventArgs e)
@@ -1740,7 +2586,7 @@ namespace CursorManager
         private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
         {
             BtnCheckUpdate.IsEnabled = false;
-            SetStatus("🔄", "正在檢查雲端最新版本...", Color.FromRgb(0x89, 0xB4, 0xFA));
+            SetStatus("🔄", "正在檢查雲端最新版本...", StatusTone.Info);
 
             var settings = LoadAppSettings();
             var update = await Task.Run(() => UpdateChecker.CheckForUpdatesAsync(settings.SkippedUpdateVersion));
@@ -1749,12 +2595,12 @@ namespace CursorManager
             if (update.HasUpdate)
             {
                 ShowPendingUpdateBadge(update);
-                SetStatus("🚀", $"發現新版本 {update.LatestVersion}！可點擊右側按鈕開始下載更新。", Color.FromRgb(0xF3, 0x8B, 0xA8));
+                SetStatus("🚀", $"發現新版本 {update.LatestVersion}！可點擊右側按鈕開始下載更新。", StatusTone.Error);
                 ShowUpdateDialog(update);
             }
             else
             {
-                SetStatus("✨", $"目前已是最新版本 ({update.CurrentVersion})！", Color.FromRgb(0xA6, 0xE3, 0xA1));
+                SetStatus("✨", $"目前已是最新版本 ({update.CurrentVersion})！", StatusTone.Success);
                 ConfirmDialog.Alert(this, "檢查更新",
                     $"目前運行的已是最新版本 ({update.CurrentVersion})",
                     "無需更新！",

@@ -33,7 +33,7 @@ namespace CursorManager
 
                 Parallel.ForEach(dirList, dir =>
                 {
-                    var item = TryCreateThemeItem(dir, isTemporary: false);
+                    var item = TryCreateThemeItem(dir, isTemporary: false, libraryRoot: baseDir);
                     if (item != null)
                         bag.Add(item);
                 });
@@ -45,7 +45,7 @@ namespace CursorManager
             return results;
         }
 
-        public static CharacterThemeItem? TryCreateThemeItem(string dir, bool isTemporary)
+        public static CharacterThemeItem? TryCreateThemeItem(string dir, bool isTemporary, string? libraryRoot = null)
         {
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 return null;
@@ -59,11 +59,8 @@ namespace CursorManager
 
                 string dirName = Path.GetFileName(dir.TrimEnd('\\', '/'));
                 if (string.IsNullOrEmpty(dirName)) dirName = "自訂鼠標";
-                string parentDirName = Path.GetFileName(Path.GetDirectoryName(dir.TrimEnd('\\', '/')) ?? "");
 
-                string group = isTemporary ? "未存入庫" : ResolveGroup(dir, parentDirName);
-                string cleanName = dirName.Replace("Mouse cursor", "", StringComparison.OrdinalIgnoreCase).Trim();
-                if (string.IsNullOrWhiteSpace(cleanName)) cleanName = dirName;
+                string group = isTemporary ? "未存入庫" : ResolveGroup(dir, libraryRoot);
 
                 string previewFile = cursorFiles.FirstOrDefault(f =>
                     f.Contains("01") || f.Contains("nomal", StringComparison.OrdinalIgnoreCase) ||
@@ -73,10 +70,10 @@ namespace CursorManager
 
                 return new CharacterThemeItem
                 {
-                    Name = cleanName,
+                    Name = dirName,
                     Group = group,
                     FolderPath = dir,
-                    FileCount = cursorFiles.Count,
+                    FileCount = CursorMatcher.CountMatchedSlots(dir),
                     PreviewFilePath = previewFile,
                     PreviewImage = CursorIconHelper.LoadCursorImage(previewFile, CursorIconHelper.SidebarPreviewSize),
                     IsTemporary = isTemporary
@@ -88,24 +85,18 @@ namespace CursorManager
             }
         }
 
-        private static string ResolveGroup(string dir, string parentDirName)
+        private static string ResolveGroup(string dir, string? libraryRoot)
         {
-            if (dir.Contains("Hololive 0th", StringComparison.OrdinalIgnoreCase)) return "Hololive 0期生";
-            if (dir.Contains("Hololive 1st", StringComparison.OrdinalIgnoreCase)) return "Hololive 1期生";
-            if (dir.Contains("Hololive 2nd", StringComparison.OrdinalIgnoreCase)) return "Hololive 2期生";
-            if (dir.Contains("Hololive 3rd", StringComparison.OrdinalIgnoreCase)) return "Hololive 3期生";
-            if (dir.Contains("Hololive 4th", StringComparison.OrdinalIgnoreCase)) return "Hololive 4期生";
-            if (dir.Contains("Hololive 5th", StringComparison.OrdinalIgnoreCase)) return "Hololive 5期生";
-            if (dir.Contains("Hololive EN", StringComparison.OrdinalIgnoreCase)) return "Hololive EN";
-            if (dir.Contains("Hololive Gamers", StringComparison.OrdinalIgnoreCase)) return "Hololive Gamers";
-            if (dir.Contains("Hololive ID", StringComparison.OrdinalIgnoreCase)) return "Hololive ID";
+            string? parentPath = Path.GetDirectoryName(dir.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(parentPath))
+                return ThemeGroupNames.Ungrouped;
 
-            if (!string.IsNullOrEmpty(parentDirName) && !parentDirName.StartsWith("Hololive Mouse cursor", StringComparison.OrdinalIgnoreCase))
-            {
-                return parentDirName;
-            }
+            if (!string.IsNullOrEmpty(libraryRoot) &&
+                parentPath.Equals(libraryRoot.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+                return ThemeGroupNames.Ungrouped;
 
-            return "自訂鼠標";
+            string parentName = Path.GetFileName(parentPath);
+            return string.IsNullOrEmpty(parentName) ? ThemeGroupNames.Ungrouped : parentName;
         }
     }
 }

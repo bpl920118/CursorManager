@@ -63,4 +63,19 @@ namespace CursorManager
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
     }
+
+    public class IsExtraToRoleTextBrushConverter : IValueConverter
+    {
+        public static readonly IsExtraToRoleTextBrushConverter Instance = new();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool isExtra && isExtra)
+                return Application.Current.Resources["StatusWarningBrush"] as Brush ?? Brushes.Goldenrod;
+
+            return Application.Current.Resources["TextMutedBrush"] as Brush ?? Brushes.Gray;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
 }

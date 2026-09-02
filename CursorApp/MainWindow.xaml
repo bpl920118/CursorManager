@@ -9,6 +9,10 @@
         Height="896" Width="1390"
         MinHeight="762" MinWidth="1232"
         WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Ideal"
+        TextOptions.TextRenderingMode="Grayscale"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="Segoe UI Variable, Segoe UI, Microsoft JhengHei UI, sans-serif"
@@ -18,100 +22,248 @@
 
     <Window.Resources>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SubtleButtonBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BtnBorder" Background="{TemplateBinding Background}"
+                                BorderThickness="0" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource ItemHoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FilterChip" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
-            <Setter Property="Padding" Value="12,7"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource ButtonHoverForegroundBrush}"/>
-                                <Setter Property="BorderBrush" Value="#89B4FA"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource ButtonHoverForegroundBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="PrimaryBtn" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="#1E66F5"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#7287FD"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#7287FD"/>
-                                <Setter Property="BorderBrush" Value="#B4BEFE"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#04A5E5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SecondaryBtn" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonForegroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SecondaryButtonBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,7"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ChipBorder" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                CornerRadius="14" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource SecondaryButtonHoverBackgroundBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonHoverForegroundBrush}"/>
-                                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ChipBorder" Property="Background" Value="{DynamicResource ChipCheckedBackgroundBrush}"/>
+                                <Setter TargetName="ChipBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ChipCheckedForegroundBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource ButtonPressedBackgroundBrush}"/>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ChipBorder" Property="Background" Value="{DynamicResource ItemHoverBackgroundBrush}"/>
+                                <Setter TargetName="ChipBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="PrimaryBtn" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="24,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="PrimaryBorder" Background="{TemplateBinding Background}"
+                                BorderThickness="0" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PrimaryBorder" Property="Background" Value="{DynamicResource PrimaryButtonHoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="PrimaryBorder" Property="Background" Value="{DynamicResource PrimaryButtonPressedBackgroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryBtn" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource SecondaryActionBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+        </Style>
+
+        <Style x:Key="ToolbarBtn" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryActionBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="ToolbarBtnDanger" TargetType="Button" BasedOn="{StaticResource ToolbarBtn}">
+            <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource DangerBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerBorderBrush}"/>
+        </Style>
+
+        <Style x:Key="BatchDeleteCheckBox" TargetType="CheckBox">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="BoxBorder" Width="18" Height="18" CornerRadius="4"
+                                Background="{DynamicResource CardItemInnerBackgroundBrush}"
+                                BorderBrush="{DynamicResource DangerBorderBrush}" BorderThickness="1.5"
+                                SnapsToDevicePixels="True">
+                            <Grid>
+                                <TextBlock x:Name="CheckMark" Text="✓" FontSize="11" FontWeight="Bold"
+                                           Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Visibility="Collapsed"/>
+                                <Border x:Name="PartialMark" Width="8" Height="2" CornerRadius="1"
+                                        Background="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="BoxBorder" Property="Background" Value="{DynamicResource DangerTextBrush}"/>
+                                <Setter TargetName="BoxBorder" Property="BorderBrush" Value="{DynamicResource DangerTextBrush}"/>
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="{x:Null}">
+                                <Setter TargetName="BoxBorder" Property="Background" Value="{DynamicResource DangerBackgroundBrush}"/>
+                                <Setter TargetName="BoxBorder" Property="BorderBrush" Value="{DynamicResource DangerTextBrush}"/>
+                                <Setter TargetName="PartialMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BoxBorder" Property="BorderBrush" Value="{DynamicResource DangerTextBrush}"/>
+                                <Setter TargetName="BoxBorder" Property="Background" Value="{DynamicResource DangerBackgroundBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="BoxBorder" Property="Background" Value="{DynamicResource DangerTextBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Geometry x:Key="FavoriteStarGeometry">M12,2 L14.8,9.2 L22.5,9.8 L16.8,14.5 L18.8,22 L12,18.2 L5.2,22 L7.2,14.5 L1.5,9.8 L9.2,9.2 Z</Geometry>
+
+        <DataTemplate x:Key="ThemeItemTemplate" DataType="{x:Type local:CharacterThemeItem}">
+            <Border CornerRadius="8" Padding="2,2" SnapsToDevicePixels="True">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelectedForBatch}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource DangerTextBrush}"/>
+                                <Setter Property="Background" Value="{DynamicResource DangerBackgroundBrush}"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelectedForBatch, Mode=TwoWay}"
+                          Style="{StaticResource BatchDeleteCheckBox}"
+                          Checked="BatchCheckBox_Changed" Unchecked="BatchCheckBox_Changed"
+                          Visibility="{Binding IsBatchDeleteMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
+                <Border Grid.Column="1" Width="36" Height="36" Background="{DynamicResource CardItemInnerBackgroundBrush}" CornerRadius="6" Margin="0,0,6,0" VerticalAlignment="Center">
+                    <Image Source="{Binding PreviewImage}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Border>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="18" Height="18" Margin="0,0,8,0" VerticalAlignment="Center"
+                              Visibility="{Binding IsTemporary, Converter={x:Static local:InverseBooleanToVisibilityConverter.Instance}}">
+                            <Path Data="{StaticResource FavoriteStarGeometry}" Stretch="Uniform" SnapsToDevicePixels="True">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Fill" Value="Transparent"/>
+                                        <Setter Property="Stroke" Value="{DynamicResource FavoriteStarMutedBrush}"/>
+                                        <Setter Property="StrokeThickness" Value="1.5"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                <Setter Property="Fill" Value="{DynamicResource FavoriteStarBrush}"/>
+                                                <Setter Property="Stroke" Value="{DynamicResource FavoriteStarBrush}"/>
+                                                <Setter Property="StrokeThickness" Value="0"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </Grid>
+                        <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"
+                                   FontFamily="{StaticResource UiFontFamily}" VerticalAlignment="Center"/>
+                        <Border Margin="6,0,0,0" Padding="5,2" CornerRadius="4" VerticalAlignment="Center"
+                                Background="{DynamicResource InUseBadgeBackgroundBrush}"
+                                BorderBrush="{DynamicResource InUseBadgeBorderBrush}" BorderThickness="1"
+                                Visibility="{Binding IsCurrentlyInUse, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
+                            <TextBlock Text="現在使用" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource InUseBadgeTextBrush}"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+                <Border Grid.Column="3" Background="{DynamicResource BorderColorBrush}" CornerRadius="10" Padding="7,3" VerticalAlignment="Center" MinWidth="44">
+                    <TextBlock Text="{Binding FileCountDisplay}" FontSize="10" Foreground="{DynamicResource PrimaryAccent}" HorizontalAlignment="Center"/>
+                </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
 
         <!-- ContextMenu Dark Theme -->
         <Style TargetType="ContextMenu">
@@ -168,12 +320,18 @@
         <!-- Must live in Window.Resources (not inside a Style Setter): Click handlers nested in
              Setter.Value break IComponentConnector connectionId wiring at runtime. -->
         <ContextMenu x:Key="LibraryThemeContextMenu" x:Shared="false">
+            <MenuItem Name="MenuToggleFavorite" Header="⭐ 加入收藏" Click="MenuToggleFavorite_Click"/>
+            <MenuItem Header="📁 指定群組" Click="MenuSetCustomGroup_Click"/>
+            <Separator/>
             <MenuItem Header="✏️ 重新命名此主題" Click="MenuRenameTheme_Click"/>
             <MenuItem Header="📂 開啟所在資料夾" Click="MenuOpenFolder_Click"/>
             <Separator/>
             <MenuItem Header="🗑️ 刪除此主題" Click="MenuDeleteTheme_Click" Foreground="#F38BA8"/>
         </ContextMenu>
         <ContextMenu x:Key="SessionThemeContextMenu" x:Shared="false">
+            <MenuItem Name="MenuToggleFavoriteSession" Header="⭐ 加入收藏" Click="MenuToggleFavorite_Click"/>
+            <MenuItem Header="📁 指定群組" Click="MenuSetCustomGroup_Click"/>
+            <Separator/>
             <MenuItem Header="✏️ 重新命名顯示名稱" Click="MenuRenameTheme_Click"/>
             <MenuItem Header="📂 開啟所在資料夾" Click="MenuOpenFolder_Click"/>
             <MenuItem Header="📦 存入鼠標庫" Click="MenuSaveTemporaryTheme_Click"/>
@@ -182,7 +340,7 @@
         </ContextMenu>
     </Window.Resources>
 
-    <Grid x:Name="RootScaleGrid">
+    <Grid x:Name="RootScaleGrid" UseLayoutRounding="True" SnapsToDevicePixels="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Top Bar & Drag Area -->
             <RowDefinition Height="*"/>    <!-- Main Content Area -->
@@ -200,20 +358,19 @@
 
                 <!-- Title & Subtitle -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="✨" FontSize="18" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="鼠標一鍵套用器" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccent}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <TextBlock Text="拖曳資料夾或 .zip 至此視窗即可安全匯入並立即生效" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="23,2,0,0"/>
+                    <TextBlock Text="鼠標一鍵套用器" FontSize="17" FontWeight="Medium"
+                               Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="拖曳資料夾或 .zip 至此視窗即可安全匯入並立即生效" FontSize="11" FontWeight="Normal"
+                               Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0"/>
                 </StackPanel>
 
                 <!-- Big Drag & Drop Dropzone Button -->
                 <Border Grid.Column="1" 
                         Name="DropZoneBorder"
                         Background="{DynamicResource CardItemInnerBackgroundBrush}" 
-                        BorderBrush="{DynamicResource PrimaryAccent}" 
+                        BorderBrush="{DynamicResource DropZoneBorderBrush}" 
                         BorderThickness="1.5" 
-                        CornerRadius="8" 
+                        CornerRadius="10" 
                         Padding="10,6"
                         Cursor="Hand"
                         Margin="8,0"
@@ -222,18 +379,17 @@
                         DragOver="Window_DragOver"
                         Drop="Window_Drop">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="📂" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="拖曳資料夾、.zip 或點此手動選擇" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="拖曳資料夾、.zip 或點此手動選擇" FontSize="12.5" FontWeight="Normal" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Quick Action: Open Mouse Settings & Storage Settings -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="📥 擷取鼠標" Click="BtnCaptureCurrentSystem_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
+                    <Button Content="擷取鼠標" Style="{StaticResource ToolbarBtn}" Click="BtnCaptureCurrentSystem_Click" Margin="0,0,6,0"
                             ToolTip="將目前正在使用的鼠標直接存為新主題"/>
-                    <Button Content="⚙️ 設定" Click="OpenSettings_Click" Padding="8,5" FontSize="11.5" Margin="0,0,6,0"
+                    <Button Content="設定" Style="{StaticResource ToolbarBtn}" Click="OpenSettings_Click" Margin="0,0,6,0"
                             ToolTip="資料夾位置、鼠標大小與外觀設定"/>
-                    <Button Content="🖱️ 系統設定" Click="OpenWindowsMouseSettings_Click" Padding="8,5" FontSize="11.5"/>
+                    <Button Content="系統設定" Style="{StaticResource ToolbarBtn}" Click="OpenWindowsMouseSettings_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -241,7 +397,7 @@
         <!-- MAIN SPLIT CONTENT -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="348" MinWidth="246" MaxWidth="504"/> <!-- Left Character List -->
+                <ColumnDefinition Width="400" MinWidth="300" MaxWidth="520"/> <!-- Left Character List -->
                 <ColumnDefinition Width="2"/>                                 <!-- Splitter -->
                 <ColumnDefinition Width="*"/>                                  <!-- Right Slots Grid -->
             </Grid.ColumnDefinitions>
@@ -251,131 +407,225 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <!-- Header -->
                 <Border Grid.Row="0" Padding="14,10,14,6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="內建鼠標庫" FontSize="14" FontWeight="Bold" Foreground="#CBA6F7" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Name="TxtThemeCount" Text="0 個主題" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <Button Grid.Column="2" Name="BtnRefreshThemes" Content="↻ 重新整理" Click="BtnRefreshThemes_Click"
-                                Padding="7,3" FontSize="10.5" ToolTip="重新掃描鼠標庫，讀取手動新增或移除的主題"/>
-                    </Grid>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="我的鼠標庫" FontSize="15" FontWeight="Medium" Foreground="{DynamicResource AccentTitleBrush}"/>
+                            <TextBlock Text="·" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0"/>
+                            <TextBlock Name="TxtThemeCount" Text="0 個主題" FontSize="11.5"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button Name="BtnCollapseAllGroups" Content="全部收起" Style="{StaticResource ToolbarBtn}" Click="BtnCollapseAllGroups_Click"
+                                    Padding="10,5" FontSize="11" Margin="0,0,6,0" ToolTip="收起左側所有群組"/>
+                            <Button Name="BtnBatchDelete" Content="批量刪除" Style="{StaticResource ToolbarBtnDanger}" Click="BtnBatchDelete_Click"
+                                    Padding="10,5" FontSize="11" Margin="0,0,6,0" ToolTip="勾選多個主題後一次刪除"
+                                    Visibility="{Binding IsBatchDeleteMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:InverseBooleanToVisibilityConverter.Instance}}"/>
+                            <Button Name="BtnRefreshThemes" Content="重新整理" Style="{StaticResource ToolbarBtn}" Click="BtnRefreshThemes_Click"
+                                    Padding="10,5" FontSize="11" ToolTip="重新掃描鼠標庫，讀取手動新增或移除的主題"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Batch delete toolbar -->
+                <Border Grid.Row="1" Name="BatchDeleteToolbar" Margin="12,0,12,6" Padding="8,6"
+                        Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        Visibility="{Binding IsBatchDeleteMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="全選" Style="{StaticResource ToolbarBtn}" Click="BtnBatchSelectAll_Click"
+                                Padding="10,5" FontSize="11" Margin="0,0,6,0"/>
+                        <Button Content="取消全選" Style="{StaticResource ToolbarBtn}" Click="BtnBatchSelectNone_Click"
+                                Padding="10,5" FontSize="11" Margin="0,0,6,0"/>
+                        <Button Name="BtnDeleteSelectedThemes" Content="刪除所選 (0)" Style="{StaticResource ToolbarBtnDanger}"
+                                Click="BtnDeleteSelectedThemes_Click" Padding="10,5" FontSize="11" Margin="0,0,6,0"/>
+                        <Button Content="取消" Style="{StaticResource ToolbarBtn}" Click="BtnCancelBatchDelete_Click"
+                                Padding="10,5" FontSize="11"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- Search Box -->
-                <Border Grid.Row="1" Margin="12,0,12,8" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Padding="6,4">
+                <Border Grid.Row="2" Margin="12,0,12,6" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Padding="6,4">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="🔍" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,6,0"/>
+                        <TextBlock Grid.Column="0" Text="搜尋" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="6,0,6,0"/>
                         <TextBox Grid.Column="1" Name="TxtSearch" Background="Transparent" Foreground="{DynamicResource TextPrimaryBrush}" BorderThickness="0"
                                  FontSize="12" VerticalAlignment="Center" TextChanged="TxtSearch_TextChanged"
                                  CaretBrush="{DynamicResource PrimaryAccent}"/>
-                        <TextBlock Grid.Column="1" Text="搜尋主題或名稱..." FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" IsHitTestVisible="False"
+                        <TextBlock Grid.Column="1" Text="搜尋主題或群組..." FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" IsHitTestVisible="False"
                                    Visibility="{Binding Text.IsEmpty, ElementName=TxtSearch, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
                     </Grid>
                 </Border>
 
-                <!-- Themes ListBox -->
-                <ListBox Grid.Row="2" Name="LstThemes" Background="Transparent" BorderThickness="0"
-                         SelectionChanged="LstThemes_SelectionChanged"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                         ScrollViewer.CanContentScroll="True"
-                         VirtualizingPanel.IsVirtualizing="True"
-                         VirtualizingPanel.VirtualizationMode="Recycling"
-                         VirtualizingPanel.ScrollUnit="Pixel"
-                         Padding="6,0,6,6">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="44"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                <!-- Filter & Sort -->
+                <Grid Grid.Row="3" Margin="12,0,12,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <ToggleButton Name="BtnFilterAll" Content="全部" IsChecked="True" PreviewMouseLeftButtonDown="ThemeFilter_PreviewMouseLeftButtonDown" Style="{StaticResource FilterChip}"
+                                      Padding="10,5" Margin="0,0,5,0" Cursor="Hand"/>
+                        <ToggleButton Name="BtnFilterFavorites" Content="收藏" PreviewMouseLeftButtonDown="ThemeFilter_PreviewMouseLeftButtonDown" Style="{StaticResource FilterChip}"
+                                      Padding="10,5" Margin="0,0,5,0" Cursor="Hand"/>
+                        <ToggleButton Name="BtnFilterRecent" Content="最近" PreviewMouseLeftButtonDown="ThemeFilter_PreviewMouseLeftButtonDown" Style="{StaticResource FilterChip}"
+                                      Padding="10,5" Cursor="Hand"/>
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" Name="CmbThemeSort" Width="108" FontSize="10.5" VerticalAlignment="Center"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
+                              SelectionChanged="CmbThemeSort_SelectionChanged">
+                        <ComboBoxItem Content="名稱" Tag="Name"/>
+                        <ComboBoxItem Content="日期" Tag="Date"/>
+                        <ComboBoxItem Content="最近使用" Tag="Recent"/>
+                    </ComboBox>
+                </Grid>
 
-                                <!-- Cursor Icon Preview -->
-                                <Border Grid.Column="0" Width="40" Height="40" Background="{DynamicResource CardItemInnerBackgroundBrush}" CornerRadius="6" Margin="0,0,6,0" VerticalAlignment="Center">
-                                    <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                </Border>
-
-                                <!-- Info -->
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"
-                                                   FontFamily="{StaticResource UiFontFamily}" VerticalAlignment="Center"/>
-                                        <Border Margin="6,0,0,0" Padding="5,1" CornerRadius="4" VerticalAlignment="Center"
-                                                Background="#A6E3A133" BorderBrush="#A6E3A188" BorderThickness="1"
-                                                Visibility="{Binding IsCurrentlyInUse, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
-                                            <TextBlock Text="現在使用" FontSize="9" FontWeight="SemiBold" Foreground="#A6E3A1"/>
-                                        </Border>
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding GroupDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
-                                </StackPanel>
-
-                                <!-- File count badge -->
-                                <Border Grid.Column="2" Background="{DynamicResource BorderColorBrush}" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" MinWidth="52">
-                                    <TextBlock Text="{Binding FileCount, StringFormat='{}{0} 圖標'}" FontSize="10" Foreground="{DynamicResource PrimaryAccent}" HorizontalAlignment="Center"/>
-                                </Border>
-                            </Grid>
+                <!-- Themes TreeView (grouped) -->
+                <TreeView Grid.Row="4" Name="TrvThemes" Background="Transparent" BorderThickness="0"
+                          SelectedItemChanged="TrvThemes_SelectedItemChanged"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          Padding="6,0,6,6">
+                    <TreeView.Resources>
+                        <DataTemplate DataType="{x:Type local:CharacterThemeItem}">
+                            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ThemeItemTemplate}"/>
                         </DataTemplate>
-                    </ListBox.ItemTemplate>
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Padding" Value="0"/>
+                        <HierarchicalDataTemplate DataType="{x:Type local:ThemeGroupNode}" ItemsSource="{Binding Themes}"
+                                                  ItemTemplate="{StaticResource ThemeItemTemplate}">
+                            <Border Background="{DynamicResource GroupHeaderBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderColorBrush}"
+                                    BorderThickness="1"
+                                    Padding="10,8" CornerRadius="6" Margin="0,8,0,2" Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Width="22" Height="22" CornerRadius="5" Margin="0,0,10,0"
+                                            Background="{DynamicResource CardItemInnerBackgroundBrush}"
+                                            BorderBrush="{DynamicResource PrimaryAccent}" BorderThickness="1"
+                                            VerticalAlignment="Center">
+                                        <TextBlock FontSize="11" FontWeight="Bold"
+                                                   Foreground="{DynamicResource PrimaryAccent}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   TextAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="▶"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                            <Setter Property="Text" Value="▼"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                    <TextBlock Text="群組" FontSize="9" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <CheckBox IsChecked="{Binding IsGroupBatchChecked, Mode=TwoWay}"
+                                              IsThreeState="True"
+                                              Style="{StaticResource BatchDeleteCheckBox}"
+                                              Checked="GroupBatchCheckBox_Changed"
+                                              Unchecked="GroupBatchCheckBox_Changed"
+                                              Visibility="{Binding IsBatchDeleteMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
+                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Themes.Count, StringFormat='· {0} 個主題'}" FontSize="10"
+                                               Foreground="{DynamicResource TextMutedBrush}" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </HierarchicalDataTemplate>
+                    </TreeView.Resources>
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                            <Setter Property="Padding" Value="1,0"/>
                             <Setter Property="Margin" Value="0"/>
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                             <EventSetter Event="PreviewMouseRightButtonDown" Handler="ThemeItem_PreviewMouseRightButtonDown"/>
+                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ThemeTreeItem_PreviewMouseLeftButtonDown"/>
                             <Setter Property="Template">
                                 <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="ThemeItemBorder"
-                                                Background="{DynamicResource CardBackgroundBrush}"
-                                                BorderBrush="{DynamicResource BorderColorBrush}"
-                                                BorderThickness="2"
-                                                CornerRadius="8"
-                                                Padding="10,8"
-                                                Margin="2,3"
-                                                Cursor="Hand">
-                                            <ContentPresenter HorizontalAlignment="Stretch"/>
-                                        </Border>
+                                    <ControlTemplate TargetType="TreeViewItem">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <ToggleButton x:Name="Expander" Grid.Row="0" ClickMode="Press"
+                                                          IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                                          Visibility="Collapsed" Focusable="False"/>
+                                            <Grid x:Name="ThemeItemHost" Grid.Row="0">
+                                                <Border x:Name="ThemeItemBorder"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        CornerRadius="6" Padding="4,4" Cursor="Hand"
+                                                        SnapsToDevicePixels="True">
+                                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Stretch"/>
+                                                </Border>
+                                                <Border x:Name="SelectionBar" Width="3" HorizontalAlignment="Left"
+                                                        CornerRadius="2" Margin="0,6,0,6"
+                                                        Background="{DynamicResource PrimaryAccent}"
+                                                        Visibility="Collapsed"/>
+                                            </Grid>
+                                            <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Margin="12,2,0,4"/>
+                                        </Grid>
                                         <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemHoverBackgroundBrush}"/>
-                                                <Setter TargetName="ThemeItemBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                            <Trigger Property="IsExpanded" Value="False">
+                                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
                                             </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemSelectedBackgroundBrush}"/>
-                                                <Setter TargetName="ThemeItemBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
+                                            <Trigger Property="HasItems" Value="True">
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="Transparent"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="BorderThickness" Value="0"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="Margin" Value="0"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="Padding" Value="0"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="Cursor" Value="Hand"/>
                                             </Trigger>
                                             <MultiTrigger>
                                                 <MultiTrigger.Conditions>
-                                                    <Condition Property="IsSelected" Value="True"/>
+                                                    <Condition Property="HasItems" Value="True"/>
                                                     <Condition Property="IsMouseOver" Value="True"/>
                                                 </MultiTrigger.Conditions>
-                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemSelectedHoverBackgroundBrush}"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="Transparent"/>
+                                            </MultiTrigger>
+                                            <Trigger Property="HasItems" Value="False">
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="BorderBrush" Value="{DynamicResource BorderColorBrush}"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="BorderThickness" Value="1"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="Margin" Value="10,2,0,4"/>
+                                                <Setter TargetName="ThemeItemBorder" Property="Padding" Value="2,2"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemHoverBackgroundBrush}"/>
+                                            </Trigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                    <Condition Property="HasItems" Value="True"/>
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="Transparent"/>
+                                            </MultiTrigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsSelected" Value="True"/>
+                                                    <Condition Property="HasItems" Value="False"/>
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="ThemeItemBorder" Property="Background" Value="{DynamicResource ItemSelectedBackgroundBrush}"/>
+                                                <Setter TargetName="SelectionBar" Property="Visibility" Value="Visible"/>
                                             </MultiTrigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
                         </Style>
-                    </ListBox.ItemContainerStyle>
-                </ListBox>
+                    </TreeView.ItemContainerStyle>
+                </TreeView>
             </Grid>
 
             <!-- SPLITTER -->
@@ -396,17 +646,23 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SuccessColor}" VerticalAlignment="Center"/>
+                            <TextBlock Name="TxtCurrentThemeTitle" Text="未選擇任何主題" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             <TextBlock Name="TxtCurrentFolderPath" Text="請從左側選擇或將資料夾 / .zip 拖曳進來" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"
                                        FontFamily="{StaticResource LatinFontFamily}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Content="🔄 重新配對本目錄" Click="BtnRematch_Click" Padding="10,5" FontSize="11" VerticalAlignment="Center"
-                                ToolTip="重新掃描目前資料夾內的 .ani / .cur 檔案，並重新自動配對 15 項鼠標（檔名有變更或手動替換圖檔時使用）"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="📂 開啟所在資料夾" Click="BtnOpenCurrentFolder_Click" Style="{StaticResource ToolbarBtn}"
+                                    Padding="10,5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"
+                                    ToolTip="在檔案總管中開啟目前主題的資料夾"/>
+                            <Button Content="🔄 重新配對本目錄" Click="BtnRematch_Click" Padding="10,5" FontSize="11" VerticalAlignment="Center"
+                                    Style="{StaticResource ToolbarBtn}"
+                                    ToolTip="重新掃描目前資料夾內的 .ani / .cur 檔案，並重新自動配對 17 項鼠標（檔名有變更或手動替換圖檔時使用）"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
                 <!-- 15 Cursor Slots Grid -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14">
+                <ScrollViewer x:Name="SlotsScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10">
                     <ListBox Name="ItemsCursorSlots" Background="Transparent" BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
@@ -425,22 +681,30 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Preview Box -->
-                                    <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Width="44" Height="44" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Border Grid.Column="0" Background="{DynamicResource SlotPreviewBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="6" Width="48" Height="48" VerticalAlignment="Center" HorizontalAlignment="Center">
                                         <Grid>
-                                            <Image Source="{Binding PreviewImage}" Width="32" Height="32" Stretch="None" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            <Image Source="{Binding PreviewImage}" Width="40" Height="40" Stretch="None" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    RenderOptions.BitmapScalingMode="HighQuality"/>
-                                            <TextBlock Text="✕" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            <TextBlock Text="✕" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                        Foreground="{DynamicResource MissingSlotIconBrush}"
                                                        Visibility="{Binding HasFile, Converter={x:Static local:InverseBooleanToVisibilityConverter.Instance}}"/>
                                         </Grid>
                                     </Border>
 
                                     <!-- Slot Info -->
-                                    <StackPanel Grid.Column="1" Margin="10,0,4,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Grid.Column="1" Margin="10,0,2,0" VerticalAlignment="Center">
+                                        <Grid>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,36,0"/>
+                                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" BorderBrush="{DynamicResource StatusWarningBrush}" BorderThickness="1" Background="Transparent" CornerRadius="4" Padding="5,1"
+                                                    Visibility="{Binding IsExtra, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
+                                                <TextBlock Text="額外" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource StatusWarningBrush}"/>
+                                            </Border>
+                                        </Grid>
+                                        <TextBlock Text="{Binding WindowsRoleDisplay}" FontSize="10" Foreground="{Binding IsExtra, Converter={x:Static local:IsExtraToRoleTextBrushConverter.Instance}}"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
                                         <TextBlock Text="{Binding FileName}" FontSize="11" Foreground="{Binding HasFile, Converter={x:Static local:HasFileToTextBrushConverter.Instance}}"
                                                    FontFamily="{StaticResource LatinFontFamily}"
-                                                   TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding FilePath}"/>
+                                                   TextTrimming="CharacterEllipsis" Margin="0,1,0,0" ToolTip="{Binding FilePath}"/>
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>
@@ -456,17 +720,22 @@
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
                                             <Border x:Name="SlotCardBorder"
-                                                    Width="248" Height="88"
+                                                    Width="232" Height="88"
+                                                    ToolTip="{Binding SlotTooltip}"
                                                     Background="{DynamicResource CardItemInnerBackgroundBrush}"
                                                     BorderBrush="{Binding HasFile, Converter={x:Static local:HasFileToBorderBrushConverter.Instance}}"
-                                                    BorderThickness="2"
+                                                    BorderThickness="1.5"
                                                     CornerRadius="8"
-                                                    Margin="5"
-                                                    Padding="10,8"
+                                                    Margin="4"
+                                                    Padding="8,6"
                                                     Cursor="Hand">
                                                 <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsExtra}" Value="True">
+                                                    <Setter TargetName="SlotCardBorder" Property="BorderBrush" Value="{DynamicResource StatusWarningBrush}"/>
+                                                    <Setter TargetName="SlotCardBorder" Property="Background" Value="{DynamicResource CardItemInnerBackgroundBrush}"/>
+                                                </DataTrigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter TargetName="SlotCardBorder" Property="Background" Value="{DynamicResource SlotHoverBackgroundBrush}"/>
                                                     <Setter TargetName="SlotCardBorder" Property="BorderBrush" Value="{DynamicResource PrimaryAccent}"/>
@@ -494,68 +763,54 @@
         </Grid>
 
         <!-- BOTTOM STATUS & ACTION BAR -->
-        <Border Grid.Row="2" Background="{DynamicResource BottomBarBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,1,0,0" Padding="16,10">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+        <Border Grid.Row="2" Background="{DynamicResource BottomBarBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="0,1,0,0" Padding="14,8">
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="200"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <!-- Mouse size -->
-                <Grid Grid.Row="0" Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="220"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="鼠標大小" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,12,0"/>
-                    <Slider Grid.Column="1" Name="SliderPointerSize" Style="{StaticResource PointerSizeSlider}"
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Name="TxtStatusMessage" Text="已就緒。點擊「套用」即可使用" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock Text="鼠標大小" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,8,0"/>
+                    <Slider Name="SliderPointerSize" Style="{StaticResource PointerSizeSlider}" Width="170"
                             ValueChanged="SliderPointerSize_ValueChanged"/>
-                    <TextBlock Grid.Column="2" Name="TxtPointerSizeLabel" Text="32 PX" FontSize="13" FontWeight="SemiBold"
-                               VerticalAlignment="Center" Margin="12,0,0,0"
-                               Foreground="{DynamicResource PrimaryAccent}" MinWidth="56"
+                    <TextBlock Name="TxtPointerSizeLabel" Text="32 PX" FontSize="11.5" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="8,0,0,0"
+                               Foreground="{DynamicResource PrimaryAccent}" MinWidth="48"
                                FontFamily="{DynamicResource LatinFontFamily}"/>
-                </Grid>
+                </StackPanel>
 
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Border Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="8" Padding="6,3" VerticalAlignment="Center">
+                        <TextBlock Name="TxtVersion" Text="v3.0.0" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Border>
 
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Name="TxtStatusIcon" Text="💡" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Name="TxtStatusMessage" Text="已就緒。點擊「套用」即可使用" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </StackPanel>
+                    <Button Name="BtnCheckUpdate" Content="檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click"
+                            FontSize="11.5" Padding="12,6" Margin="6,0,0,0" VerticalAlignment="Center"/>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
-                        <Border Background="{DynamicResource CardItemInnerBackgroundBrush}" BorderBrush="{DynamicResource BorderColorBrush}" BorderThickness="1" CornerRadius="10" Padding="8,4" VerticalAlignment="Center">
-                            <TextBlock Name="TxtVersion" Text="v3.0.0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        </Border>
+                    <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊更新" Click="BtnNewUpdateFound_Click"
+                            Visibility="Collapsed" Margin="6,0,0,0" Padding="10,5" FontSize="11" FontWeight="Bold"
+                            Background="#F38BA8" Foreground="#11111B" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="10"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
 
-                        <Button Name="BtnCheckUpdate" Content="🔄 檢查更新" Style="{StaticResource SecondaryBtn}" Click="BtnCheckUpdate_Click"
-                                FontSize="11" Padding="8,4" Margin="6,0,0,0" VerticalAlignment="Center"/>
-
-                        <Button Name="BtnNewUpdateFound" Content="🚀 發現新版本！點擊更新" Click="BtnNewUpdateFound_Click"
-                                Visibility="Collapsed" Margin="6,0,0,0" Padding="10,4" FontSize="11" FontWeight="Bold"
-                                Background="#F38BA8" Foreground="#11111B" BorderThickness="0" Cursor="Hand">
-                            <Button.Resources>
-                                <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="10"/>
-                                </Style>
-                            </Button.Resources>
-                        </Button>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Name="BtnReapplyLast" Content="🔁 套用上次" Style="{StaticResource SecondaryBtn}" Click="BtnReapplyLast_Click"
-                                Margin="0,0,8,0" Padding="12,8" ToolTip="重新套用上次主題"/>
-                        <Button Content="🔄 恢復預設" Style="{StaticResource SecondaryBtn}" Click="BtnRestoreDefault_Click" Margin="0,0,8,0" Padding="14,8"/>
-                        <Button Name="BtnApplyTheme" Content="✨ 套用" Style="{StaticResource PrimaryBtn}" Click="BtnApplyTheme_Click" Padding="24,9"/>
-                    </StackPanel>
-                </Grid>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Name="BtnReapplyLast" Content="套用上次" Style="{StaticResource SecondaryBtn}" Click="BtnReapplyLast_Click"
+                            Margin="0,0,6,0" ToolTip="重新套用上次主題"/>
+                    <Button Content="恢復預設" Style="{StaticResource SecondaryBtn}" Click="BtnRestoreDefault_Click" Margin="0,0,6,0"/>
+                    <Button Name="BtnApplyTheme" Content="套用" Style="{StaticResource PrimaryBtn}" Click="BtnApplyTheme_Click"/>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

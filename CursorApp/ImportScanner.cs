@@ -14,7 +14,7 @@ namespace CursorManager
         public bool HasInstallInf { get; init; }
         public string? InstallInfPath { get; init; }
         public int MatchedSlots { get; init; }
-        public int TotalSlots { get; init; } = 15;
+        public int TotalSlots { get; init; } = WindowsCursorSlots.StandardCount;
         public int SkippedEntries { get; init; }
 
         public int TotalCursorFiles => AniCount + CurCount;
@@ -65,7 +65,7 @@ namespace CursorManager
                     Path.GetFileName(f).Equals("install.inf", StringComparison.OrdinalIgnoreCase));
 
                 var slots = CursorMatcher.MatchFolder(folderPath);
-                int matched = slots.Count(s => s.HasFile);
+                int matched = slots.Count(s => !s.IsExtra && s.HasFile);
 
                 return new ImportScanResult
                 {
@@ -75,7 +75,7 @@ namespace CursorManager
                     HasInstallInf = installInf != null,
                     InstallInfPath = installInf,
                     MatchedSlots = matched,
-                    TotalSlots = slots.Count
+                    TotalSlots = WindowsCursorSlots.StandardCount
                 };
             }
             catch
