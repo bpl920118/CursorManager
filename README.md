@@ -1,4 +1,4 @@
-# 🖱️ CursorManager (鼠標游標管理器 - Windows 一鍵即時套用工具)
+# 🖱️ CursorManager (鼠標管理器 - Windows 一鍵套用工具)
 
 <p align="center">
   <img src="CursorApp/app.ico" alt="CursorManager Logo" width="96" height="96" />
