@@ -41,7 +41,8 @@ namespace CursorManager
             AniCache.Clear();
         }
 
-        // Preview render sizes (decode native pixels, then fit in UI with Uniform + NearestNeighbor)
+        // Preview decode cap: keep native pixels when ≤ this size; downscale larger frames with alpha-safe HQ.
+        // UI shows them 1:1 (Stretch=None) so we never do non-integer NearestNeighbor upscales.
         public const int SidebarPreviewSize = 32;
         public const int SlotPreviewLoadSize = 32;
 
@@ -314,7 +315,15 @@ namespace CursorManager
                     return ScaleToFit(bmp, targetSize);
             }
 
-            // 1/4/8/24 bpp or unusual layouts: fall back via a unique temp .cur
+            if (biBitCount == 1 || biBitCount == 4 || biBitCount == 8)
+            {
+                var bmp = DecodeIndexedDib(
+                    iconData, imageOffset, biSize, biWidth, xorHeight, biBitCount);
+                if (bmp != null)
+                    return ScaleToFit(bmp, targetSize);
+            }
+
+            // Unusual layouts: fall back via a unique temp .cur
             return DecodeIconBlockViaTempFile(iconData, targetSize);
         }
 
@@ -375,9 +384,117 @@ namespace CursorManager
                 for (int i = 3; i < pixels.Length; i += 4)
                     pixels[i] = 255;
             }
+            else
+            {
+                // Clear RGB under fully transparent pixels so HQ downscales don't bleed white halos.
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    if (pixels[i + 3] == 0)
+                    {
+                        pixels[i] = 0;
+                        pixels[i + 1] = 0;
+                        pixels[i + 2] = 0;
+                    }
+                }
+            }
 
             var bmp = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
             bmp.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
+            bmp.Freeze();
+            return bmp;
+        }
+
+        /// <summary>
+        /// Decodes 1/4/8 bpp icon XOR + palette + 1bpp AND mask into BGRA32.
+        /// Avoids CreateBitmapSourceFromHIcon alpha speckles on palette cursors (e.g. Staff Cursor).
+        /// </summary>
+        private static BitmapSource? DecodeIndexedDib(
+            byte[] data, int imageOffset, int biSize, int width, int height, short bitCount)
+        {
+            if (width <= 0 || height <= 0 || biSize < 40) return null;
+
+            int clrUsed = BitConverter.ToInt32(data, imageOffset + 32);
+            int paletteEntries = clrUsed > 0 ? clrUsed : (1 << bitCount);
+            if (paletteEntries <= 0 || paletteEntries > 256) return null;
+
+            int paletteOffset = imageOffset + biSize;
+            long paletteBytes = (long)paletteEntries * 4;
+            if (paletteOffset < 0 || paletteOffset + paletteBytes > data.Length)
+                return null;
+
+            int xorStride = ((width * bitCount + 31) / 32) * 4;
+            long xorBytes = (long)xorStride * height;
+            int xorOffset = paletteOffset + (int)paletteBytes;
+            if (xorOffset + xorBytes > data.Length) return null;
+
+            int andStride = ((width + 31) / 32) * 4;
+            long andBytes = (long)andStride * height;
+            int andOffset = xorOffset + (int)xorBytes;
+            bool hasAnd = andOffset + andBytes <= data.Length;
+
+            byte[] pixels = new byte[width * height * 4];
+            int dstStride = width * 4;
+
+            for (int y = 0; y < height; y++)
+            {
+                int srcY = height - 1 - y; // bottom-up
+                int xorRow = xorOffset + srcY * xorStride;
+                int andRow = hasAnd ? andOffset + srcY * andStride : 0;
+                int dstRow = y * dstStride;
+
+                for (int x = 0; x < width; x++)
+                {
+                    int index;
+                    if (bitCount == 8)
+                    {
+                        index = data[xorRow + x];
+                    }
+                    else if (bitCount == 4)
+                    {
+                        byte packed = data[xorRow + (x / 2)];
+                        index = ((x & 1) == 0) ? (packed >> 4) : (packed & 0x0F);
+                    }
+                    else // 1 bpp
+                    {
+                        byte packed = data[xorRow + (x / 8)];
+                        index = (packed >> (7 - (x & 7))) & 1;
+                    }
+
+                    if (index < 0) index = 0;
+                    if (index >= paletteEntries) index = paletteEntries - 1;
+
+                    int pal = paletteOffset + index * 4;
+                    byte b = data[pal];
+                    byte g = data[pal + 1];
+                    byte r = data[pal + 2];
+
+                    bool transparent = false;
+                    if (hasAnd)
+                    {
+                        byte maskByte = data[andRow + (x / 8)];
+                        transparent = ((maskByte >> (7 - (x & 7))) & 1) != 0;
+                    }
+
+                    int di = dstRow + x * 4;
+                    if (transparent)
+                    {
+                        pixels[di] = 0;
+                        pixels[di + 1] = 0;
+                        pixels[di + 2] = 0;
+                        pixels[di + 3] = 0;
+                    }
+                    else
+                    {
+                        pixels[di] = b;
+                        pixels[di + 1] = g;
+                        pixels[di + 2] = r;
+                        pixels[di + 3] = 255;
+                    }
+                }
+            }
+
+            var bmp = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+            bmp.WritePixels(new Int32Rect(0, 0, width, height), pixels, dstStride, 0);
             bmp.Freeze();
             return bmp;
         }
@@ -406,7 +523,7 @@ namespace CursorManager
         {
             if (targetSize <= 0) return src;
 
-            // Keep native pixels when smaller than the preview box; UI upscales with NearestNeighbor.
+            // Keep native pixels when they already fit; UI uses Stretch=None (1:1, no jagged upscale).
             if (src.PixelWidth <= targetSize && src.PixelHeight <= targetSize)
                 return src;
 
@@ -414,9 +531,25 @@ namespace CursorManager
                 (double)targetSize / src.PixelWidth,
                 (double)targetSize / src.PixelHeight);
 
-            var scaled = new TransformedBitmap(src, new ScaleTransform(scale, scale));
-            scaled.Freeze();
-            return scaled;
+            int w = Math.Max(1, (int)Math.Round(src.PixelWidth * scale));
+            int h = Math.Max(1, (int)Math.Round(src.PixelHeight * scale));
+
+            // HighQuality downscale via DrawingVisual (Fant) — TransformedBitmap bleeds RGB-under-alpha.
+            var dv = new DrawingVisual();
+            RenderOptions.SetBitmapScalingMode(dv, BitmapScalingMode.HighQuality);
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawImage(src, new Rect(0, 0, w, h));
+            }
+
+            var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            rtb.Render(dv);
+            rtb.Freeze();
+
+            // Convert to Bgra32 for consistent Image binding / cache freeness
+            var converted = new FormatConvertedBitmap(rtb, PixelFormats.Bgra32, null, 0);
+            converted.Freeze();
+            return converted;
         }
     }
 }
