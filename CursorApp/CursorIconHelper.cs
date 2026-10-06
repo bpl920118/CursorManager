@@ -41,7 +41,7 @@ namespace CursorManager
             AniCache.Clear();
         }
 
-        // Preview render sizes (native load, 1:1 or 2x integer display only)
+        // Preview render sizes (decode native pixels, then fit in UI with Uniform + NearestNeighbor)
         public const int SidebarPreviewSize = 32;
         public const int SlotPreviewLoadSize = 32;
 
@@ -70,12 +70,39 @@ namespace CursorManager
         {
             try
             {
-                // Prefer native resolution so WPF can upscale with NearestNeighbor without blur.
-                IntPtr hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
-                if (hCursor == IntPtr.Zero)
+                byte[] data = File.ReadAllBytes(filePath);
+
+                // ANI: decode first embedded icon frame (correct BGRA / alpha)
+                if (filePath.EndsWith(".ani", StringComparison.OrdinalIgnoreCase))
                 {
-                    hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, size, size, LR_LOADFROMFILE);
+                    if (TryParseAniIconBlocks(data, out _, out var iconBlocks, out _) &&
+                        iconBlocks.Count > 0)
+                    {
+                        var frame = DecodeIconBlock(iconBlocks[0], size);
+                        if (frame != null) return frame;
+                    }
                 }
+                // CUR / ICO: decode file bytes directly
+                else if (filePath.EndsWith(".cur", StringComparison.OrdinalIgnoreCase) ||
+                         filePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+                {
+                    var frame = DecodeIconBlock(data, size);
+                    if (frame != null) return frame;
+                }
+            }
+            catch { }
+
+            // Fallback: Win32 LoadImage (may tint / flatten alpha on some 32bpp cursors)
+            return LoadCursorViaWin32(filePath, size);
+        }
+
+        private static ImageSource? LoadCursorViaWin32(string filePath, int size)
+        {
+            try
+            {
+                IntPtr hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, size, size, LR_LOADFROMFILE);
+                if (hCursor == IntPtr.Zero)
+                    hCursor = LoadImage(IntPtr.Zero, filePath, IMAGE_CURSOR, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
 
                 if (hCursor != IntPtr.Zero)
                 {
@@ -85,8 +112,8 @@ namespace CursorManager
                             hCursor,
                             Int32Rect.Empty,
                             BitmapSizeOptions.FromEmptyOptions());
-                        bs.Freeze(); // Make cross-thread accessible
-                        return bs;
+                        bs.Freeze();
+                        return ScaleToFit(bs, size);
                     }
                     finally
                     {
@@ -107,76 +134,12 @@ namespace CursorManager
             try
             {
                 byte[] data = File.ReadAllBytes(filePath);
-                if (data.Length < 12) return null;
-
-                // Check RIFF header
-                if (Encoding.ASCII.GetString(data, 0, 4) != "RIFF" || Encoding.ASCII.GetString(data, 8, 4) != "ACON")
+                if (!TryParseAniIconBlocks(data, out int defaultJifRate, out var iconBlocks, out var rateList))
                     return null;
-
-                int pos = 12;
-                int frameCount = 0;
-                int defaultJifRate = 10; // Default: 10 jiffies (~166ms)
-                List<int> rateList = new();
-                List<byte[]> iconBlocks = new();
-
-                while (pos + 8 <= data.Length)
-                {
-                    string chunkId = Encoding.ASCII.GetString(data, pos, 4);
-                    int chunkSize = BitConverter.ToInt32(data, pos + 4);
-                    pos += 8;
-
-                    if (pos + chunkSize > data.Length) break;
-
-                    if (chunkId == "anih" && chunkSize >= 36)
-                    {
-                        // cbSize (4), cFrames (4), cSteps (4), cx (4), cy (4), cBitCount (4), cPlanes (4), JifRate (4), flags (4)
-                        frameCount = BitConverter.ToInt32(data, pos + 4);
-                        defaultJifRate = BitConverter.ToInt32(data, pos + 28);
-                        if (defaultJifRate <= 0) defaultJifRate = 10;
-                    }
-                    else if (chunkId == "rate")
-                    {
-                        int count = chunkSize / 4;
-                        for (int i = 0; i < count; i++)
-                        {
-                            int r = BitConverter.ToInt32(data, pos + i * 4);
-                            rateList.Add(r > 0 ? r : defaultJifRate);
-                        }
-                    }
-                    else if (chunkId == "LIST")
-                    {
-                        if (chunkSize >= 4 && Encoding.ASCII.GetString(data, pos, 4) == "fram")
-                        {
-                            int framPos = pos + 4;
-                            int framEnd = pos + chunkSize;
-
-                            while (framPos + 8 <= framEnd)
-                            {
-                                string subId = Encoding.ASCII.GetString(data, framPos, 4);
-                                int subSize = BitConverter.ToInt32(data, framPos + 4);
-                                framPos += 8;
-
-                                if (subId == "icon" && framPos + subSize <= framEnd)
-                                {
-                                    byte[] iconData = new byte[subSize];
-                                    Array.Copy(data, framPos, iconData, 0, subSize);
-                                    iconBlocks.Add(iconData);
-                                }
-
-                                framPos += subSize;
-                                if (framPos % 2 != 0) framPos++; // WORD aligned
-                            }
-                        }
-                    }
-
-                    pos += chunkSize;
-                    if (pos % 2 != 0) pos++; // WORD aligned
-                }
 
                 if (iconBlocks.Count == 0)
                 {
-                    // If no icon chunk found, fallback to single frame
-                    var singleImg = LoadCursorImageInternal(filePath, size);
+                    var singleImg = LoadCursorViaWin32(filePath, size);
                     if (singleImg != null)
                     {
                         return new AniFrameSequence
@@ -189,16 +152,11 @@ namespace CursorManager
                 }
 
                 var seq = new AniFrameSequence();
-                string tempDir = Path.Combine(Path.GetTempPath(), "CursorManagerAniPreview");
-                Directory.CreateDirectory(tempDir);
-                string tempIconPath = Path.Combine(tempDir, "_preview_frame.cur");
-
                 for (int i = 0; i < iconBlocks.Count; i++)
                 {
                     try
                     {
-                        File.WriteAllBytes(tempIconPath, iconBlocks[i]);
-                        var frameImg = LoadCursorImageInternal(tempIconPath, size);
+                        var frameImg = DecodeIconBlock(iconBlocks[i], size);
                         if (frameImg != null)
                         {
                             seq.Frames.Add(frameImg);
@@ -215,6 +173,250 @@ namespace CursorManager
             {
                 return null;
             }
+        }
+
+        private static bool TryParseAniIconBlocks(
+            byte[] data,
+            out int defaultJifRate,
+            out List<byte[]> iconBlocks,
+            out List<int> rateList)
+        {
+            defaultJifRate = 10;
+            iconBlocks = new List<byte[]>();
+            rateList = new List<int>();
+
+            if (data.Length < 12) return false;
+            if (Encoding.ASCII.GetString(data, 0, 4) != "RIFF" ||
+                Encoding.ASCII.GetString(data, 8, 4) != "ACON")
+                return false;
+
+            int pos = 12;
+            while (pos + 8 <= data.Length)
+            {
+                string chunkId = Encoding.ASCII.GetString(data, pos, 4);
+                int chunkSize = BitConverter.ToInt32(data, pos + 4);
+                pos += 8;
+
+                if (chunkSize < 0 || pos + chunkSize > data.Length) break;
+
+                if (chunkId == "anih" && chunkSize >= 36)
+                {
+                    defaultJifRate = BitConverter.ToInt32(data, pos + 28);
+                    if (defaultJifRate <= 0) defaultJifRate = 10;
+                }
+                else if (chunkId == "rate")
+                {
+                    int count = chunkSize / 4;
+                    for (int i = 0; i < count; i++)
+                    {
+                        int r = BitConverter.ToInt32(data, pos + i * 4);
+                        rateList.Add(r > 0 ? r : defaultJifRate);
+                    }
+                }
+                else if (chunkId == "LIST")
+                {
+                    if (chunkSize >= 4 && Encoding.ASCII.GetString(data, pos, 4) == "fram")
+                    {
+                        int framPos = pos + 4;
+                        int framEnd = pos + chunkSize;
+
+                        while (framPos + 8 <= framEnd)
+                        {
+                            string subId = Encoding.ASCII.GetString(data, framPos, 4);
+                            int subSize = BitConverter.ToInt32(data, framPos + 4);
+                            framPos += 8;
+
+                            if (subSize < 0 || framPos + subSize > framEnd) break;
+
+                            if (subId == "icon")
+                            {
+                                byte[] iconData = new byte[subSize];
+                                Array.Copy(data, framPos, iconData, 0, subSize);
+                                iconBlocks.Add(iconData);
+                            }
+
+                            framPos += subSize;
+                            if (framPos % 2 != 0) framPos++; // WORD aligned
+                        }
+                    }
+                }
+
+                pos += chunkSize;
+                if (pos % 2 != 0) pos++; // WORD aligned
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Decodes a .cur / .ico blob (ICONDIR + image) into a BGRA BitmapSource.
+        /// Avoids CreateBitmapSourceFromHIcon color/alpha distortion on 32bpp cursors.
+        /// </summary>
+        private static ImageSource? DecodeIconBlock(byte[] iconData, int targetSize)
+        {
+            if (iconData == null || iconData.Length < 22) return null;
+
+            short reserved = BitConverter.ToInt16(iconData, 0);
+            short type = BitConverter.ToInt16(iconData, 2);
+            short count = BitConverter.ToInt16(iconData, 4);
+            if (reserved != 0 || (type != 1 && type != 2) || count < 1)
+                return null;
+
+            int entryIndex = SelectBestIconEntry(iconData, count, targetSize);
+            int entryOffset = 6 + entryIndex * 16;
+            if (entryOffset + 16 > iconData.Length) return null;
+
+            int bytesInRes = BitConverter.ToInt32(iconData, entryOffset + 8);
+            int imageOffset = BitConverter.ToInt32(iconData, entryOffset + 12);
+            if (imageOffset < 0 || bytesInRes <= 0 ||
+                imageOffset + bytesInRes > iconData.Length)
+                return null;
+
+            // PNG-compressed icon (Vista+)
+            if (imageOffset + 8 <= iconData.Length &&
+                iconData[imageOffset] == 0x89 &&
+                iconData[imageOffset + 1] == 0x50 &&
+                iconData[imageOffset + 2] == 0x4E &&
+                iconData[imageOffset + 3] == 0x47)
+            {
+                try
+                {
+                    using var ms = new MemoryStream(iconData, imageOffset, bytesInRes, writable: false);
+                    var decoder = new PngBitmapDecoder(ms, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                    if (decoder.Frames.Count == 0) return null;
+                    BitmapSource png = decoder.Frames[0];
+                    png.Freeze();
+                    return ScaleToFit(png, targetSize);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            // Classic DIB (BITMAPINFOHEADER + XOR [+ AND])
+            if (imageOffset + 40 > iconData.Length) return null;
+            int biSize = BitConverter.ToInt32(iconData, imageOffset);
+            if (biSize < 40) return null;
+
+            int biWidth = BitConverter.ToInt32(iconData, imageOffset + 4);
+            int biHeight = BitConverter.ToInt32(iconData, imageOffset + 8); // XOR+AND for icons
+            short biBitCount = BitConverter.ToInt16(iconData, imageOffset + 14);
+
+            int xorHeight = Math.Abs(biHeight) / 2;
+            if (xorHeight <= 0) xorHeight = Math.Abs(biHeight);
+            if (biWidth <= 0 || xorHeight <= 0) return null;
+
+            if (biBitCount == 32)
+            {
+                var bmp = DecodeBgra32Dib(iconData, imageOffset + biSize, biWidth, xorHeight);
+                if (bmp != null)
+                    return ScaleToFit(bmp, targetSize);
+            }
+
+            // 1/4/8/24 bpp or unusual layouts: fall back via a unique temp .cur
+            return DecodeIconBlockViaTempFile(iconData, targetSize);
+        }
+
+        private static int SelectBestIconEntry(byte[] iconData, int count, int targetSize)
+        {
+            int best = 0;
+            int bestScore = int.MinValue;
+            for (int i = 0; i < count; i++)
+            {
+                int entryOffset = 6 + i * 16;
+                if (entryOffset + 16 > iconData.Length) break;
+
+                int w = iconData[entryOffset];
+                int h = iconData[entryOffset + 1];
+                if (w == 0) w = 256;
+                if (h == 0) h = 256;
+                int bpp = BitConverter.ToInt16(iconData, entryOffset + 6);
+                if (bpp == 0) bpp = 32;
+
+                // Prefer exact/near target size, then higher bit depth, then larger
+                int sizeDiff = Math.Abs(Math.Max(w, h) - Math.Max(targetSize, 1));
+                int score = (bpp * 1000) - (sizeDiff * 10) + Math.Max(w, h);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        private static BitmapSource? DecodeBgra32Dib(byte[] data, int pixelOffset, int width, int height)
+        {
+            long needed = (long)width * height * 4;
+            if (pixelOffset < 0 || pixelOffset + needed > data.Length || width <= 0 || height <= 0)
+                return null;
+
+            int stride = width * 4;
+            byte[] pixels = new byte[stride * height];
+
+            // DIBs are stored bottom-up
+            for (int y = 0; y < height; y++)
+            {
+                int srcRow = pixelOffset + (height - 1 - y) * stride;
+                int dstRow = y * stride;
+                Buffer.BlockCopy(data, srcRow, pixels, dstRow, stride);
+            }
+
+            // If the alpha channel is entirely empty, treat pixels as opaque
+            // (some cursors store transparency only in the AND mask).
+            bool anyAlpha = false;
+            for (int i = 3; i < pixels.Length; i += 4)
+            {
+                if (pixels[i] != 0) { anyAlpha = true; break; }
+            }
+            if (!anyAlpha)
+            {
+                for (int i = 3; i < pixels.Length; i += 4)
+                    pixels[i] = 255;
+            }
+
+            var bmp = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+            bmp.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
+            bmp.Freeze();
+            return bmp;
+        }
+
+        private static ImageSource? DecodeIconBlockViaTempFile(byte[] iconData, int targetSize)
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "CursorManagerAniPreview");
+            Directory.CreateDirectory(tempDir);
+            string tempIconPath = Path.Combine(tempDir, $"frame_{Guid.NewGuid():N}.cur");
+            try
+            {
+                File.WriteAllBytes(tempIconPath, iconData);
+                return LoadCursorViaWin32(tempIconPath, targetSize);
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                try { File.Delete(tempIconPath); } catch { }
+            }
+        }
+
+        private static ImageSource ScaleToFit(BitmapSource src, int targetSize)
+        {
+            if (targetSize <= 0) return src;
+
+            // Keep native pixels when smaller than the preview box; UI upscales with NearestNeighbor.
+            if (src.PixelWidth <= targetSize && src.PixelHeight <= targetSize)
+                return src;
+
+            double scale = Math.Min(
+                (double)targetSize / src.PixelWidth,
+                (double)targetSize / src.PixelHeight);
+
+            var scaled = new TransformedBitmap(src, new ScaleTransform(scale, scale));
+            scaled.Freeze();
+            return scaled;
         }
     }
 }
